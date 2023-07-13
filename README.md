@@ -13,7 +13,7 @@ SOCRATES (Signals of Opportunity Constellation and Remote sensing Analysis Tool 
   - Link budget for direct and reflected signals.
   - Modeling of multi-body spacecraft attitude dynamics with rigid bodies.
   
-Use SOCRATES-Retrieval for end-to-end retrieval analysis using multi-SoOp. SOCRATES-Retrieval can be accessed from the following Code Ocean capsule: <https://doi.org/10.24433/CO.5405959.v1>
+Use SOCRATES-Retrieval for end-to-end retrieval analysis using multi-SoOp. SOCRATES-Retrieval can be accessed from the following Code Ocean capsule: <https://doi.org/10.24433/CO.5405959.v2>
 
 ## Compilation
 
