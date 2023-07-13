@@ -7,38 +7,38 @@ FALSE                       !  Graphics Front End?
 Inp_Cmd.txt                 !  Command Script File Name
 **************************  Reference Orbits  *************************
 15                                  !  Number of Reference Orbits
-TRUE   Orb_MUOS_1.txt               !  Input file name for Orb 8
-TRUE   Orb_MUOS_2.txt               !  Input file name for Orb 9
-TRUE   Orb_MUOS_3.txt               !  Input file name for Orb 10
-TRUE   Orb_MUOS_4.txt               !  Input file name for Orb 11
-TRUE   Orb_MUOS_5.txt               !  Input file name for Orb 11
-TRUE   Orb_ORBCOMM_FM107.txt        !  Input file name for Orb 37
-TRUE   Orb_ORBCOMM_FM108.txt        !  Input file name for Orb 38
-TRUE   Orb_ORBCOMM_FM109.txt        !  Input file name for Orb 39
-TRUE   Orb_ORBCOMM_FM110.txt        !  Input file name for Orb 40
-TRUE   Orb_ORBCOMM_FM112.txt        !  Input file name for Orb 41
-TRUE   Orb_ORBCOMM_FM113.txt        !  Input file name for Orb 42
-TRUE   Orb_ORBCOMM_FM114.txt        !  Input file name for Orb 43
-TRUE   Orb_ORBCOMM_FM116.txt        !  Input file name for Orb 45
-TRUE   Orb_ORBCOMM_FM117.txt        !  Input file name for Orb 46
-TRUE   Orb_ORBCOMM_FM118.txt        !  Input file name for Orb 47
+TRUE   Orb_MUOS_MUOS-1.txt          !  Input file name for Orb 0
+TRUE   Orb_MUOS_MUOS-2.txt          !  Input file name for Orb 1
+TRUE   Orb_MUOS_MUOS-3.txt          !  Input file name for Orb 2
+TRUE   Orb_MUOS_MUOS-4.txt          !  Input file name for Orb 3
+TRUE   Orb_MUOS_MUOS-5.txt          !  Input file name for Orb 4
+TRUE   Orb_ORBCOMM_FM-107.txt       !  Input file name for Orb 5
+TRUE   Orb_ORBCOMM_FM-108.txt       !  Input file name for Orb 6
+TRUE   Orb_ORBCOMM_FM-109.txt       !  Input file name for Orb 7
+TRUE   Orb_ORBCOMM_FM-110.txt       !  Input file name for Orb 8
+TRUE   Orb_ORBCOMM_FM-112.txt       !  Input file name for Orb 9
+TRUE   Orb_ORBCOMM_FM-113.txt       !  Input file name for Orb 10
+TRUE   Orb_ORBCOMM_FM-114.txt       !  Input file name for Orb 11
+TRUE   Orb_ORBCOMM_FM-116.txt       !  Input file name for Orb 12
+TRUE   Orb_ORBCOMM_FM-117.txt       !  Input file name for Orb 13
+TRUE   Orb_ORBCOMM_FM-118.txt       !  Input file name for Orb 14
 *****************************  Spacecraft  *****************************
-15                                 !  Number of Spacecraft
-TRUE  0 SC_MUOS_1.txt               !  Existence, RefOrb, Input file for SC 0
-TRUE  1 SC_MUOS_2.txt               !  Existence, RefOrb, Input file for SC 0
-TRUE  2 SC_MUOS_3.txt              !  Existence, RefOrb, Input file for SC 0
-TRUE  3 SC_MUOS_4.txt              !  Existence, RefOrb, Input file for SC 0
-TRUE  4 SC_MUOS_5.txt              !  Existence, RefOrb, Input file for SC 0
-TRUE  5 SC_ORBCOMM_FM107.txt       !  Existence, RefOrb, Input file for SC 40
-TRUE  6 SC_ORBCOMM_FM108.txt       !  Existence, RefOrb, Input file for SC 41
-TRUE  7 SC_ORBCOMM_FM109.txt       !  Existence, RefOrb, Input file for SC 42
-TRUE  8 SC_ORBCOMM_FM110.txt       !  Existence, RefOrb, Input file for SC 43
-TRUE  9 SC_ORBCOMM_FM112.txt       !  Existence, RefOrb, Input file for SC 44 
-TRUE  10 SC_ORBCOMM_FM113.txt       !  Existence, RefOrb, Input file for SC 45 
-TRUE  11 SC_ORBCOMM_FM114.txt       !  Existence, RefOrb, Input file for SC 46 
-TRUE  12 SC_ORBCOMM_FM116.txt       !  Existence, RefOrb, Input file for SC 48
-TRUE  13 SC_ORBCOMM_FM117.txt       !  Existence, RefOrb, Input file for SC 49
-TRUE  14 SC_ORBCOMM_FM118.txt       !  Existence, RefOrb, Input file for SC 50 
+15                                  !  Number of Spacecraft
+TRUE  0 SC_MUOS_MUOS-1.txt          !  Existence, RefOrb, Input file for SC 0
+TRUE  1 SC_MUOS_MUOS-2.txt          !  Existence, RefOrb, Input file for SC 1
+TRUE  2 SC_MUOS_MUOS-3.txt          !  Existence, RefOrb, Input file for SC 2
+TRUE  3 SC_MUOS_MUOS-4.txt          !  Existence, RefOrb, Input file for SC 3
+TRUE  4 SC_MUOS_MUOS-5.txt          !  Existence, RefOrb, Input file for SC 4
+TRUE  5 SC_ORBCOMM_FM-107.txt       !  Existence, RefOrb, Input file for SC 5
+TRUE  6 SC_ORBCOMM_FM-108.txt       !  Existence, RefOrb, Input file for SC 6
+TRUE  7 SC_ORBCOMM_FM-109.txt       !  Existence, RefOrb, Input file for SC 7
+TRUE  8 SC_ORBCOMM_FM-110.txt       !  Existence, RefOrb, Input file for SC 8
+TRUE  9 SC_ORBCOMM_FM-112.txt       !  Existence, RefOrb, Input file for SC 9
+TRUE  10 SC_ORBCOMM_FM-113.txt      !  Existence, RefOrb, Input file for SC 10
+TRUE  11 SC_ORBCOMM_FM-114.txt      !  Existence, RefOrb, Input file for SC 11
+TRUE  12 SC_ORBCOMM_FM-116.txt      !  Existence, RefOrb, Input file for SC 12
+TRUE  13 SC_ORBCOMM_FM-117.txt      !  Existence, RefOrb, Input file for SC 13
+TRUE  14 SC_ORBCOMM_FM-118.txt      !  Existence, RefOrb, Input file for SC 14
 ***************************** Environment  *****************************
 9 27 2021                       !  Date (UTC) (Month, Day, Year)
 20 00 00.00                     !  Time (UTC) (Hr,Min,Sec)
