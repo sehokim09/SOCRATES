@@ -2212,7 +2212,7 @@ void readSpDataNc(int iteration)
     int flagValid;
     // For RCG constraints
     double RCG_D, RCG_R, antGainD, antGainR;
-    double threshold_RCG_D[3] = {2.51353004264460e-15, 4.70350610913321e-16, 1.28655266830211e-16};
+    //double threshold_RCG_D[3] = {2.51353004264460e-15, 4.70350610913321e-16, 1.28655266830211e-16};
     struct DesignSoOpType *DS;
     // Grid
     struct EASEgridType *G;
@@ -2431,20 +2431,15 @@ void readSpDataNc(int iteration)
                                         flagValid = FALSE;
                                 }
                                 else{
-                                    //RCG_R = antGainR / (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]) / (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]);
-                                    
+                                    RCG_R = antGainR / (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]) / (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]);
                                     antGainD = cabs(Bistatic->g_rt[0][0])*cabs(Bistatic->g_rt[0][0]) * DS->G_Rx_num;
                                     RCG_D = antGainD / Design->accessRangeTR[iSp] / Design->accessRangeTR[iSp];
 
-                                    //if(RCG_D > Design->minDirectRCG){ // Constraint 1
-                                    //if(fabs(10*log10(RCG_D) - 10*log10(RCG_R)) < Design->maxRCGdiff) // Constraint 2
-                                    if(RCG_D > threshold_RCG_D[iSoOp])
+                                    //if(RCG_D > threshold_RCG_D[iSoOp])
+                                    if(fabs(10*log10(RCG_D) - 10*log10(RCG_R)) < Design->maxRCGdiff)
                                         flagValid = TRUE;
                                     else
                                         flagValid = FALSE;
-                                    //}
-                                    //else
-                                    //    flagValid = FALSE;
                                 }
 
                                 // Sort data into a grid
