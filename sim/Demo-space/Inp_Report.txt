@@ -1,0 +1,56 @@
+<<<<<<<<<<<<<<<<<<<<<<<<  SoOp Report Format  >>>>>>>>>>>>>>>>>>>>>>>>
+-------------------------- SPACE & TOWER -----------------------------
+TRUE                         ! Julian Day
+FALSE                         ! Date (year, month, day, hour, min, sec)
+TRUE                         ! LLA of Receiver [deg][deg][m]
+FALSE                         ! Position of Receiver in ECEF (x,y,z) [m]
+FALSE                         ! (SPACE only) Velocity of Receiver in ECEF (x,y,z) [m/s]
+TRUE                         ! Transmitter ID number
+TRUE                         ! LLA of Transmitter [deg][deg][m]
+FALSE                         ! Position of Transmitter in ECEF (x,y,z) [m]
+FALSE                         ! Velocity of Transmitter in ECEF (x,y,z) [m/s]
+TRUE                         ! LLA of Specular Point [deg][deg][m]
+FALSE                         ! Position of Specular Point in ECEF (x,y,z) [m]
+FALSE                         ! Line of Sight of Direct signal (Azimuth, Elevation) [deg][deg]
+FALSE                         ! Line of Sight of Reflected signal (Azimuth, Elevation) [deg][deg]
+FALSE                         ! Delay [sec] and Doppler [Hz] (Delay_D, Doppler_D, Delay_R, Doppler_R)
+FALSE                         ! Antenna Gain of Direct signal [dB]
+FALSE                         ! Antenna Gain of Reflected signal [dB]
+FALSE                         ! First Fresnel Zone (a,b,azimuth) [m][m][deg]
+TRUE                         ! Incidence Angle [deg]
+FALSE                         ! Elevation Angle [deg]
+------------------------- SPACE only ---------------------------------
+FALSE                         ! Roll, Pitch, Yaw in 1-2-3 Rotations from Local-Nadir to Specular Point [deg][deg][deg]
+FALSE                         ! Land Mask [1:Land, 0:Water]
+FALSE                         ! Volumetric Soil Moisture (N-Layer) [m^3/m^3]
+FALSE                         ! Soil Temperature [K]
+FALSE                         ! Freeze/Thaw State
+FALSE                         ! Soil Texture (Sand)(Clay)(Bulk density)
+FALSE                         ! Snow Cover (valid: 0-100) [%]
+FALSE                         ! Reflection Coefficent Co-pol (XX/RX/RR) (True (real, imag), w/Error (real, imag))
+FALSE                         ! Reflection Coefficent X-pol (XX/RX/RR) (True (real, imag), w/Error (real, imag))
+FALSE                         ! Reflectivity Co-pol (XX/RX/RR) (True, w/Error)
+FALSE                         ! Reflectivity X-pol (YY/RY/RL) (True, w/Error)
+FALSE                         ! SNR of Direct signal (Co-pol, X-pol)
+FALSE                         ! SNR of Reflected signal (Co-pol, X-pol)
+FALSE                         ! MUOS Spot beam Number (Rx, Sp)
+<<<<<<<<<<<<<<<<<<<<<<<<<  Subsystems >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+===========================  Comm  ===================================
+FALSE                         ! Access Time to Ground Stations
+===========================  ADCS  ===================================
+0   0                        ! First Rx ID, Last Rx ID of Interest
+---------------------------  Truth File  -----------------------------
+FALSE                         ! Julian Day
+FALSE                         ! Position in ECI frame (x,y,z) [m]
+FALSE                         ! Roll, Pitch, Yaw in LVLH frame (x,y,z) [deg]
+FALSE                         ! Angular Velocity in Body frame (x,y,z) [deg/sec]
+FALSE                         ! Angular Momentum in Body frame (x,y,z) [N-m-sec]
+FALSE                         ! Magnetic Field in Body frame (x,y,z) [T]
+FALSE                         ! Eclipse Flag (1: Eclipse, 0: Daylight)
+---------------------------  Sensors  --------------------------------
+FALSE                         ! Gyros (Meas Angular Velocity(x,y,z) [deg/s], True Rate/axis [deg/s], Meas Rate/axis [deg/s], Bias/axis [deg/s], Angle/axis[deg])
+FALSE                         ! Magnetometers (Meas Magnetic Field(x,y,z), Magnetic Field Meas per axis) [T]
+FALSE                         ! Accelerometers (True Acceleration per axis, Meas Acceleration per axis) [m/s^2]
+---------------------------  Actuators  ------------------------------
+FALSE                         ! Reaction Wheels (Torque Command (x,y,z) [N-m], Torque per whl [N-m], Angular Momentum per whl [N-m-sec])
+FALSE                         ! Magnetorquers (Momentum Command (x,y,z) [A-m^2], Torque (x,y,z) per mtb [N-m], Magnetic Momentum per mtb [A-m^2])

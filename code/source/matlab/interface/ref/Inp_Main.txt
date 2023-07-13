@@ -1,0 +1,106 @@
+<<<<<<<<<<<<<<<<<<<<<<<  SoOp Description File  >>>>>>>>>>>>>>>>>>>>>>>
+DESIGN                             ! Simulation Mode (FIXED, INORBIT, DESIGN, RETRIEVAL)
+**********************************************************************
+************************** Dynamic Data ******************************
+**********************************************************************
+FALSE                              ! Soil Moisture [m^3/m^3]
+FALSE                              ! Soil Temperature [K]
+FALSE                              ! Freeze/Thaw State
+FALSE                              ! Snow Cover [%] (12 months)
+SINGLE                             ! Ground Structure (SINGLE, MULTI)
+======================== Single-Layered Soil =========================
+SMAP_20210904T1930_SSM.float32     ! VSM File Name [FIXED:txt, INORBIT:float32]
+======================== Multi-Layered Soil ==========================
+2                                  ! Number of Input Soil Layers
+FALSE                              ! Calculate Penetration Depth?
+POME                               ! Soil Moisture Profile Model (EXPO, POME)
+OTHERS                             ! Geophysical Data Source (USCRN, OTHERS)
+*************************** EXPO *************************************
+10                                 ! Air Layer Thickness [cm]
+100                                ! Bottom-most Layer Thickness [cm]
+1                                  ! Layer Discretization [mm]
+LOGISTIC                           ! Fit Func for Diel. Profile (POLY2ND, POLY3RD, LOGISTIC)
+*************************** POME *************************************
+100                                ! Total Depth [cm]
+10                                 ! Layer Discretization [mm]
+20                                 ! Initial Inflection Depth [cm]
+*************************** USCRN ************************************
+station_list.txt                   ! USCRN Station List File Name
+2016  1   2016  12                 ! Starting Year Month, Ending Year Month
+*************************** TEXT *************************************
+--------------------------- Layer 1 ----------------------------------
+5                                  ! Depth [cm]
+SMAP_20210904T1930_SSM.float32     ! VSM File Name [FIXED:txt, INORBIT:float32]
+--------------------------- Layer 2 ----------------------------------
+30                                 ! Depth [cm]
+SMAP_20210904T1930_RZSM.float32    ! VSM File Name [FIXED:txt, INORBIT:float32]
+=========================== Soil Temperature =========================
+SMAP_191215T073_ST1.float32        ! Soil Temperature [K] File Name
+=========================== Snow Cover ===============================
+MOD10CM_19Jan.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19Feb.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19Mar.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19Apr.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19May.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19Jun.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19Jul.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19Aug.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19Sep.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_19Oct.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_18Nov.uint8                ! Snow Cover File Name (0.05 deg res.)
+MOD10CM_18Dec.uint8                ! Snow Cover File Name (0.05 deg res.)
+**********************************************************************
+************************** Static Data *******************************
+**********************************************************************
+FALSE                              ! Digital Elevation Model (1 arc-min res.)
+TRUE                               ! Land Mask (1km EASE grid2)
+FALSE                              ! Land Cover (0.05 deg res.)
+FALSE                              ! Soil Texture (1km EASE grid2)
+FALSE                              ! Soil Porosity (0.25 deg res.)
+FALSE                              ! Vegetation
+1                                  ! RMSH Roughness of Soil Surface [cm]
+----------------------- Digital Elevation Model ----------------------
+Earth2014Shape_SUR.int16           ! DEM File Name (1 arc-min res.)
+--------------------------- Land Type --------------------------------
+Land_Mask_1km_EASE2.uint8          ! Land Mask File Name (1km EASE grid2)
+MCD12C1_IGBP.uint8                 ! Land Cover File Name (0.05 deg res.)
+--------------------------- Soil Texture -----------------------------
+ANC_inc.txt                        ! (FIXED) File Name (Sand, Clay, Bulk Density, Porosity)
+sand_M01_004_NaN.float32           ! (INORBIT) Sand Ratio File Name
+clay_M01_004_NaN.float32           ! (INORBIT) Clay Ratio File Name
+bulk_M01_004_NaN.float32           ! (INORBIT) Bulk Density File Name
+--------------------------- Soil Porosity ----------------------------
+GLDAS_poro_midlayer.float32        ! Soil Porosity File Name
+**********************************************************************
+************************ Grid Configuration **************************
+******** (User-defined grid must be placed within 84N and 84S) *******
+TRUE                               ! Use Grid? (Generate outputs only within grids)
+EASE2                              ! Grid Type (EASE2, USER_DEFINED)
+=========================== EASE2 Grid ===============================
+9    M                             ! EASE2 grid resolution [km], projection (M,N,S)
+======================== User-defined Grid ===========================
+0                                  ! Number of Local grids
+**********************************************************************
+******************* In-situ Soil Moisture Network ********************
+**********************************************************************
+15                                 ! Number of Sites                  
+TxSON           9  30.35  -98.73   ! Label, Rad[km], Lat[deg], Lng[deg]
+Little_River    9  31.67  -83.6    ! Label, Rad[km], Lat[deg], Lng[deg]
+Walnut_Gulch    9  31.75 -110.03   ! Label, Rad[km], Lat[deg], Lng[deg]
+Little_Washita  9  34.86  -98.08   ! Label, Rad[km], Lat[deg], Lng[deg]
+Fort_Cobb       9  35.38  -98.64   ! Label, Rad[km], Lat[deg], Lng[deg]
+South_Fork      9  42.42  -93.41   ! Label, Rad[km], Lat[deg], Lng[deg]
+Reynolds_Creek  9  43.19 -116.75   ! Label, Rad[km], Lat[deg], Lng[deg]
+Yanco           9 -34.86  146.16   ! Label, Rad[km], Lat[deg], Lng[deg]
+Monte_Buey      9 -32.91  -62.51   ! Label, Rad[km], Lat[deg], Lng[deg]
+REMEDHUS        9  41.29   -5.46   ! Label, Rad[km], Lat[deg], Lng[deg]
+Mongolia        9  46.05  106.76   ! Label, Rad[km], Lat[deg], Lng[deg]
+Carman          9  49.60  -97.98   ! Label, Rad[km], Lat[deg], Lng[deg]
+Kenaston        9  51.47 -106.48   ! Label, Rad[km], Lat[deg], Lng[deg]
+Twente          9  52.26    6.77   ! Label, Rad[km], Lat[deg], Lng[deg]
+HOBE            9  55.97    9.10   ! Label, Rad[km], Lat[deg], Lng[deg]
+**********************************************************************
+*********************** MUOS Spotbeam (NOT USED) *********************
+**********************************************************************
+1                                  !  Scale factor for global beam radius
+5     35995.2                      !  Beamwidth/Altitude on each Target [deg][km]

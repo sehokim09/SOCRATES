@@ -1,0 +1,6 @@
+ORBCOMM : https://en.wikipedia.org/wiki/Orbcomm_(satellite)
+Glonass : https://en.wikipedia.org/wiki/List_of_GLONASS_satellites
+Beidou : https://en.wikipedia.org/wiki/List_of_BeiDou_satellites , https://www.glonass-iac.ru/en/BEIDOU/, http://mgex.igs.org/IGS_MGEX_Status_BDS.php
+
+
+

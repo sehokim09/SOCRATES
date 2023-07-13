@@ -1,0 +1,15 @@
+<<<<<<<<<<<<<<<<<<<<<<<  In-Orbit Observation Description File  >>>>>>>>>>>>>>>>>>>>>>>
+SPACE                         ! Space-based or Tower-based Observation (SPACE, TOWER)
+1                             ! Number of Receivers, NRx
+4                             ! Number of Transmitter Systems, NSoOp
+42                            ! Orbit Propagation Model (IMPORT, 42, 42_DECAY)
+========================== Import Orbits ===========================
+5                             ! Number of Spacecrafts
+20729                         ! Number of Lines in Files
+============================= 42 Orbits ==============================
+--------------------------- Space-based Rx ---------------------------
+Rx           0     0          ! Rx Name, First RefOrb, Last RefOrb in Inp_Sim.txt
+--------------------------- Tower-based Rx ---------------------------
+ACRE   30.35   -98.73  8.72   ! Label, Lat[deg], Lng[deg], Height[m]
+--------------------------- Tx Constellations ------------------------
+

@@ -1,0 +1,65 @@
+<<<<<<<<<<<<<<<<<<<<<<<  In-Orbit Observation Description File  >>>>>>>>>>>>>>>>>>>>>>>
+TOWER                         ! Space-based or Tower-based Observation (SPACE, TOWER)
+1                             ! Number of Receivers, NRx
+2                             ! Number of Transmitter Systems, NSoOp
+42                            ! Orbit Propagation Model (IMPORT, 42, 42_DECAY)
+========================== Import Orbits ===========================
+5                             ! Number of Spacecrafts
+20729                         ! Number of Lines in Files
+SNOOPI_Propagation.txt        ! SC 0 File Name (MJD/Pos/Vel)
+MUOS1_Propagation.txt         ! SC 1 File Name (MJD/Pos/Vel)
+MUOS2_Propagation.txt         ! SC 2 File Name (MJD/Pos/Vel)
+MUOS3_Propagation.txt         ! SC 3 File Name (MJD/Pos/Vel)
+MUOS4_Propagation.txt         ! SC 4 File Name (MJD/Pos/Vel)
+============================= 42 Orbits ==============================
+--------------------------- Space-based Rx ---------------------------
+SoOpRx       0     0          ! Rx Name, First RefOrb, Last RefOrb in Inp_Sim.txt
+--------------------------- Tower-based Rx ---------------------------
+ACRE   40.474398   -86.991735  8.72   ! Label, Lat[deg], Lng[deg], Height[m] 
+--------------------------- Tx Constellations ------------------------
+MUOS         0    4           ! Tx 0 Name, First RefOrb, Last RefOrb in Inp_Sim.txt
+ORBCOMM      5   15           ! Tx 1 Name, First RefOrb, Last RefOrb in Inp_Sim.txt
+**********************************************************************
+********************* SoOp Configuration 1 (Rx-Tx0) ******************
+**********************************************************************
+2                             ! Max Number of Specular Points
+------------------------- Receive Antenna ----------------------------
+0       R                     ! Max Gain [dB], Polarization(R,L,X,Y,RY)
+IDEAL                         ! Normalized Antenna Pattern (IDEAL, GAUSSIAN, USER_DEFINED)
+30   25   25   1              ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+default_ant_pat_gnXX.csv      ! (USER_DEFINED) Antenna Pattern XX-pol File Name
+default_ant_pat_gnXY.csv      ! (USER_DEFINED) Antenna Pattern XY-pol File Name
+default_ant_pat_gnYX.csv      ! (USER_DEFINED) Antenna Pattern YX-pol File Name
+default_ant_pat_gnYY.csv      ! (USER_DEFINED) Antenna Pattern YY-pol File Name
+------------------------- Transmitter --------------------------------
+255                           ! Frequency [MHz]
+37      R                     ! EIRP [dB], Polarization (R,L,X,Y)
+5000                          ! Bandwidth of channel [kHz]
+------------------------- Instrument ---------------------------------
+0.01                          ! Coherent Integration Time [sec]
+1373    290                   ! Noise Temperature Sky-view, Earth-view [K]
+------------------------- Other Parameters ---------------------------
+1000                          ! Minimum Local Surface Resolution [m]
+4       60                    ! Number of Grid Points in theta, phi direction
+**********************************************************************
+********************* SoOp Configuration 2 (Rx-Tx1) ******************
+**********************************************************************
+10                            ! Max Number of Specular Points
+------------------------- Receive Antenna ----------------------------
+0       R                     ! Max Gain [dB], Polarization(R,L,X,Y,RY)
+IDEAL                         ! Normalized Antenna Pattern (IDEAL, GAUSSIAN, USER_DEFINED)
+30   25   25   1              ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+default_ant_pat_gnXX.csv      ! (USER_DEFINED) Antenna Pattern XX-pol File Name
+default_ant_pat_gnXY.csv      ! (USER_DEFINED) Antenna Pattern XY-pol File Name
+default_ant_pat_gnYX.csv      ! (USER_DEFINED) Antenna Pattern YX-pol File Name
+default_ant_pat_gnYY.csv      ! (USER_DEFINED) Antenna Pattern YY-pol File Name
+------------------------- Transmitter --------------------------------
+137                           ! Frequency [MHz]
+1       R                     ! EIRP [dB], Polarization (R,L,X,Y)
+25                            ! Bandwidth of channel [kHz]
+------------------------- Instrument ---------------------------------
+0.01                          ! Coherent Integration Time [sec]
+1373    290                   ! Noise Temperature Sky-view, Earth-view [K]
+------------------------- Other Parameters ---------------------------
+1000                          ! Minimum Local Surface Resolution [m]
+4       60                    ! Number of Grid Points in theta, phi direction

@@ -1,0 +1,30 @@
+<<<<<<<<<<<<<<<  Constellation Design Description File  >>>>>>>>>>>>>>>>
+WALKER                    ! Constellation Type (WALKER, HYBRID)
+========================= Design Variables =============================
+7                         ! Number of # Receiver Variable
+12, 18, 24, 30, 36, 42, 48    ! # Receiver
+------------------------------------------------------------------------
+4                         ! Number of Altitude Variable
+400, 500, 600, 700        ! Altitude [km]
+------------------------------------------------------------------------
+7                         ! Number of Inclination Variable
+40, 51.6, 60, 70, 80, 90, 100      ! Inclination [deg]
+------------------------------------------------------------------------
+3                         ! Number of # Orbital Plane Variable
+1, 2, 3                   ! # Orbital Plane
+======================= Hybrid Design Variables ========================
+Hybrid-1                  ! Constellation Name
+2                         ! # Orbital Plane
+========================= Other Parameters ===========================
+FALSE                     ! Real-time Transmitter Propagation
+12                        ! Observation Time Window [hour]
+5                         ! Minimum Reflected RCG for GPS [1E-27m^-4]
+0                         ! Minimum Direct RCG [dB]
+3                         ! Maximum RCG Difference [dB]
+4                         ! Longitudinal Grid Divisor
+/local/scratch/a/kim3002/ ! Large File Storage Root Directory
+=========================== Data to Report =============================
+FALSE                     ! Individual Receiver Data (per Inp_Report.txt)
+==================== Coverage Analysis Parameter =======================
+6                         ! Number of SoOp (Tx Combinations)
+

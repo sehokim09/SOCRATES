@@ -1,0 +1,40 @@
+{
+  "components": [
+    {
+      "className": "pathSelector",
+      "componentName": "pathSelector",
+      "description": "Properties that correspond to underlying components",
+      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsSAAALEgHS3X78AAABGUlEQVRIiWNsaGj4z0ACqK+vZwSp7ujouPPz509lbDrZ2dnvVlRUqIDYLAwQTUTZsHz5cjgbZDgufY2NjXCLWWAMR0cnnAbv378Pq/i3b98IOgpuAS5DcAFQMHR3d+MMIpJ8gM0BsDCmmQ9IimQGMuKA5Egm1QcMpEYyqXFALBgcqQib5TRPRcQCiuKA1bUVazn2e3c1I9V80NWRicIvq5iOwmdRU1NDKcSoDVgiIyMZaWY6AwMDEy0NBwHG9vZ2nGUKCCCXKyCgWMaJNWIrV//Bqp8FX5kCAsjlCgy0Fbeh8Kt6q8B0SOsUFPE11TmQVERMmUIuoHkc0NwCFnyFFgggF1wwAAtzdAAKc3TA+P8/Sa0W0gADAwMAacOCsonAW8UAAAAASUVORK5CYII=",
+      "category": "My Components",
+      "authorName": "",
+      "authorEmail": "",
+      "version": "1.0",
+      "avatar": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAVIAAAAoCAIAAAAjeeWrAAAAB3RJTUUH5wQIFDkSEbP46wAAA5tJREFUeJzt3M9rI2UcBvBnukuzzcQ0me6uurVpQ8UVvKx4acBbEYRmbyEU/4PWY/HaharHCiIBPXjz1lKQ9uBBPAqDR70phgQPwm6nSZyZzI/M+/WQshfZzLLJZHDn+TCXkC887+Vh3nkTRuv1eiCiLFlIewFENG+sPVHmsPZEmcPaE2UOa0+UOaw9Ueaw9kSZw9oTZQ5rT5Q5rD1R5rD2RJnD2hNlDmtPlDk3J399fHw8n3UQ/U8dHBzEzliWZZpmp9NxHCehZei6vrGxsbW1VSqVYodjag/g6OhoFqsiegkdHh7GzliWdXZ2trOzs729ret6QitxHMeyrJOTk0ajUS6XJw9zk0+UoHHn9/b2KpVKcp0HoOv62tra/v7+6elp7Es0WHuiBJmmWa/X55lYr9dN05w8w9oTJajT6RiGMc9EwzDa7fbkmfhneyJ6YY7jxO7tf/zqg+Kdzacfbav74OHnxtq7L5ZYKBRiDw5Ze6KU3Xt7+72Hj7SFG+OPf5jf/frDZzn99rPmtz76ZspE1p4oZYXbm4H3Ty4//uFNXnvz/T9/+f7e/Q81QNMADZqmAYAGffnV3376cvpE1p4oZYv6yihwr2svUjBWH+x88t+x33/+Wi9UPHcwfSJrT5SyW8VV3+3rpdchClCQ0Z3KW4APNYRyoGyRAaKB9UbR+ssKRzNI5Ek+UcqUQERBRkAECQUBEEIFEB8SXF8IlldKg/6TMNKmT2TtiVK2eKt49bgrEoj4Ij7GFzwoH+KJeBBPxDfuvtLvX42iGSRyk0+UshuLSwPrb4gHKEgICSE+xAOGkCFkCOVBDTUNCzcXhv0Z7PJ5tydK2ZJe6llPoFwoB8p9eolyRFyIK+JK5EWB0peLthtMn8i7PVH6hm4IsSEREEEFgC/KA8bltyVyRkEUBiqv5z1fTR/H2hOlb2X1/tXjTtkoXR/pSQDxIENRjkRuFI5Gvhr5spTPX/Xc6eNYe6L0le9Wvv3iUS6XAwRQEAEUEIkoiBIRFUGUeF7ohzM4yWftiRKk6/rz/C1/bfOdjz89nUmibduxcTzSI0rQ+vq6ZVnzTLy8vKxWq5NnWHuiBNVqtfPz83kmXlxc1Gq1yTOsPVGCSqVSo9FotVrdbte27eSCbNvudrutVqvZbBaLxcnD8c/2z/O2MCJ6lnK53Gw2TdNst9uJvkKzWq3u7u7Gdh6AFvvaLSJ6yXCTT5Q5rD1R5rD2RJnzL3PSht2Hx8XRAAAAAElFTkSuQmCC",
+      "defaultPosition": [
+        1,
+        1,
+        338,
+        40
+      ]
+    },
+    {
+      "className": "fileSelector",
+      "componentName": "fileSelector",
+      "description": "Properties that correspond to underlying components",
+      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsSAAALEgHS3X78AAABGUlEQVRIiWNsaGj4z0ACqK+vZwSp7ujouPPz509lbDrZ2dnvVlRUqIDYLAwQTUTZsHz5cjgbZDgufY2NjXCLWWAMR0cnnAbv378Pq/i3b98IOgpuAS5DcAFQMHR3d+MMIpJ8gM0BsDCmmQ9IimQGMuKA5Egm1QcMpEYyqXFALBgcqQib5TRPRcQCiuKA1bUVazn2e3c1I9V80NWRicIvq5iOwmdRU1NDKcSoDVgiIyMZaWY6AwMDEy0NBwHG9vZ2nGUKCCCXKyCgWMaJNWIrV//Bqp8FX5kCAsjlCgy0Fbeh8Kt6q8B0SOsUFPE11TmQVERMmUIuoHkc0NwCFnyFFgggF1wwAAtzdAAKc3TA+P8/Sa0W0gADAwMAacOCsonAW8UAAAAASUVORK5CYII=",
+      "category": "My Components",
+      "authorName": "",
+      "authorEmail": "",
+      "version": "1.0",
+      "avatar": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAVIAAAAyCAIAAACBNMRWAAAAB3RJTUUH5wQKEDESdGoStAAAA8RJREFUeJzt3M9rI3UYx/HPdJdm24lpMt1ddWvThooreFnx0oC3IgjN3kIo/getx+K1C1WPFUQCevDmraUg7cGDeBQGj3pTDAkehN1OfzgzmR+Z7+MhZS+ymWWTyeB+Py/mEvLAM5c3mUzCGBcXFyAinczkfQJENG3Mnkg7zJ5IO8yeSDvMnkg7zJ5IO8yeSDvMnkg7zJ5IO8yeSDvMnkg7zJ5IO8yeSDs3R799cHAwnfMg+p/a3d1NnXEcx7btbrfreV5Gp2Ga5urq6vr6erlcTh1OyR7A/v7+JM6K6CW0t7eXOuM4zvHx8ebm5sbGhmmaGZ2J53mO4xweHjabzUqlMnqYF/lEGRo2v729Xa1Ws2segGmay8vLOzs7R0dHqQ/RYPZEGbJtu9FoTHNjo9GwbXv0DLMnylC327Usa5obLcvqdDqjZ9K/2xPRC/M8L/Xa/sevPijdWXv60nV6Dx5+bi2/+2Ibi8Vi6o1DZk+Us3tvb7z38JExc2P48g/7u19/+Kxg3n7W/PpH34y5kdkT5ax4ey0K/inMD394k9fefP/PX76/d/9DAzAMwIBhGABgwFx49befvhx/I7MnytmsuTiI/OvsRYrW0oPNT/479vvPX5vFauBfjb+R2RPl7FZpKfQvzfLrEAUoyOBO9S0ghOpDeVCuyBWSK+eNkvOXEw8msJF38olypgQiCjIAEkgsiIAYKoKEkOj6QLSwWL66fBInxvgbmT1RzmZvlc4f90QikVAkxPBAABVCApEAEoiE1t1XLi/PB8kENvIinyhnN2bnrpy/IQGgIDEkhoSQAOhD+pA+VADVNwzM3JzpX07gKp+f9kQ5mzPLF84TKB/Kg/KfHqI8ER/ii/iSBEmkzIWS60fjb+SnPVH++n4McSEJkEBFQCgqAIbxu5J4gyiJIzVvzgehGn8dsyfK3+LS/fPH3YpVvr6lJxEkgPRFeZL4STwYhGoQytz8/PmFP/46Zk+Uv8rd6rdfPCoUCoAACiKAAhIRBVEiohKIkiCIw3gCd/KZPVGGTNN8nr/lL6+98/GnRxPZ6Lpu6jre0iPK0MrKiuM409x4dnZWq9VGzzB7ogzV6/WTk5Npbjw9Pa3X66NnmD1RhsrlcrPZbLfbvV7Pdd3sFrmu2+v12u12q9UqlUqjh9O/2z/P08KI6FkqlUqr1bJtu9PpZPoIzVqttrW1ldo8ACP1sVtE9JLhRT6Rdpg9kXaYPZF2mD2Rdpg9kXaYPZF2mD2Rdpg9kXaYPZF2mD2Rdpg9kXaYPZF2mD2Rdv4Ff7yG8SKw9SgAAAAASUVORK5CYII=",
+      "defaultPosition": [
+        1,
+        1,
+        338,
+        50
+      ]
+    }
+  ],
+  "schema": 2,
+  "MATLABRelease": "R2022b"
+}

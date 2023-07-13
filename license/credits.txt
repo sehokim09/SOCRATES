@@ -1,0 +1,8 @@
+Third-party code:
+Some math kits copied from 42: https://github.com/ericstoneking/42, Copyright (C) 2010 United States Government as represented by the Administrator of the National Aeronautics and Space Administration.
+The Principle of Maximum Entropy (POME) model translated from Python code: https://github.com/Vikalp86/soil-moisture-profile, Copyright (C) 2019 Vikalp86.
+The SCoBi model translated from MATLAB code: https://github.com/impresslab/SCoBi, Copyright (C) 2017-2018 Mehmet Kurum, Orhan Eroglu, Dylan R. Boyd.
+
+Images used in the logo:
+Earth image: Flaticon.com
+Beard image: icon-icons.com

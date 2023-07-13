@@ -1,0 +1,259 @@
+<<<<<<<<<<<<<<<<<  42: The Mostly Harmless Simulator  >>>>>>>>>>>>>>>>>
+************************** Simulation Control **************************
+FAST                            !  Time Mode (FAST, REAL, or EXTERNAL)
+86400.000000       2.500000                    !  Sim Duration, Step Size [sec]
+2.500000                               !  File Output Interval [sec]
+FALSE                           !  Graphics Front End?
+Inp_Cmd.txt                     !  Command Script File Name
+**************************  Reference Orbits  *************************
+101                    	        !  Number of Reference Orbits
+TRUE   Orb_Rx_Con1-1.txt             !  Input file name for Orb 0
+TRUE   Orb_MUOS_MUOS-1.txt             !  Input file name for Orb 1
+TRUE   Orb_MUOS_MUOS-2.txt             !  Input file name for Orb 2
+TRUE   Orb_MUOS_MUOS-3.txt             !  Input file name for Orb 3
+TRUE   Orb_MUOS_MUOS-4.txt             !  Input file name for Orb 4
+TRUE   Orb_MUOS_MUOS-5.txt             !  Input file name for Orb 5
+TRUE   Orb_ORBCOMM_FM-004.txt             !  Input file name for Orb 6
+TRUE   Orb_ORBCOMM_FM-005.txt             !  Input file name for Orb 7
+TRUE   Orb_ORBCOMM_FM-006.txt             !  Input file name for Orb 8
+TRUE   Orb_ORBCOMM_FM-007.txt             !  Input file name for Orb 9
+TRUE   Orb_ORBCOMM_FM-008.txt             !  Input file name for Orb 10
+TRUE   Orb_ORBCOMM_FM-009.txt             !  Input file name for Orb 11
+TRUE   Orb_ORBCOMM_FM-010.txt             !  Input file name for Orb 12
+TRUE   Orb_ORBCOMM_FM-011.txt             !  Input file name for Orb 13
+TRUE   Orb_ORBCOMM_FM-012.txt             !  Input file name for Orb 14
+TRUE   Orb_ORBCOMM_FM-013.txt             !  Input file name for Orb 15
+TRUE   Orb_ORBCOMM_FM-014.txt             !  Input file name for Orb 16
+TRUE   Orb_ORBCOMM_FM-015.txt             !  Input file name for Orb 17
+TRUE   Orb_ORBCOMM_FM-018.txt             !  Input file name for Orb 18
+TRUE   Orb_ORBCOMM_FM-019.txt             !  Input file name for Orb 19
+TRUE   Orb_ORBCOMM_FM-020.txt             !  Input file name for Orb 20
+TRUE   Orb_ORBCOMM_FM-021.txt             !  Input file name for Orb 21
+TRUE   Orb_ORBCOMM_FM-023.txt             !  Input file name for Orb 22
+TRUE   Orb_ORBCOMM_FM-027.txt             !  Input file name for Orb 23
+TRUE   Orb_ORBCOMM_FM-030.txt             !  Input file name for Orb 24
+TRUE   Orb_ORBCOMM_FM-031.txt             !  Input file name for Orb 25
+TRUE   Orb_ORBCOMM_FM-032.txt             !  Input file name for Orb 26
+TRUE   Orb_ORBCOMM_FM-034.txt             !  Input file name for Orb 27
+TRUE   Orb_ORBCOMM_FM-035.txt             !  Input file name for Orb 28
+TRUE   Orb_ORBCOMM_FM-036.txt             !  Input file name for Orb 29
+TRUE   Orb_ORBCOMM_FM-103.txt             !  Input file name for Orb 30
+TRUE   Orb_ORBCOMM_FM-107.txt             !  Input file name for Orb 31
+TRUE   Orb_ORBCOMM_FM-108.txt             !  Input file name for Orb 32
+TRUE   Orb_ORBCOMM_FM-109.txt             !  Input file name for Orb 33
+TRUE   Orb_ORBCOMM_FM-110.txt             !  Input file name for Orb 34
+TRUE   Orb_ORBCOMM_FM-112.txt             !  Input file name for Orb 35
+TRUE   Orb_ORBCOMM_FM-113.txt             !  Input file name for Orb 36
+TRUE   Orb_ORBCOMM_FM-114.txt             !  Input file name for Orb 37
+TRUE   Orb_ORBCOMM_FM-115.txt             !  Input file name for Orb 38
+TRUE   Orb_ORBCOMM_FM-116.txt             !  Input file name for Orb 39
+TRUE   Orb_ORBCOMM_FM-117.txt             !  Input file name for Orb 40
+TRUE   Orb_ORBCOMM_FM-118.txt             !  Input file name for Orb 41
+TRUE   Orb_GPS_PRN-01.txt             !  Input file name for Orb 42
+TRUE   Orb_GPS_PRN-02.txt             !  Input file name for Orb 43
+TRUE   Orb_GPS_PRN-03.txt             !  Input file name for Orb 44
+TRUE   Orb_GPS_PRN-04.txt             !  Input file name for Orb 45
+TRUE   Orb_GPS_PRN-05.txt             !  Input file name for Orb 46
+TRUE   Orb_GPS_PRN-06.txt             !  Input file name for Orb 47
+TRUE   Orb_GPS_PRN-07.txt             !  Input file name for Orb 48
+TRUE   Orb_GPS_PRN-08.txt             !  Input file name for Orb 49
+TRUE   Orb_GPS_PRN-09.txt             !  Input file name for Orb 50
+TRUE   Orb_GPS_PRN-10.txt             !  Input file name for Orb 51
+TRUE   Orb_GPS_PRN-11.txt             !  Input file name for Orb 52
+TRUE   Orb_GPS_PRN-12.txt             !  Input file name for Orb 53
+TRUE   Orb_GPS_PRN-13.txt             !  Input file name for Orb 54
+TRUE   Orb_GPS_PRN-14.txt             !  Input file name for Orb 55
+TRUE   Orb_GPS_PRN-15.txt             !  Input file name for Orb 56
+TRUE   Orb_GPS_PRN-16.txt             !  Input file name for Orb 57
+TRUE   Orb_GPS_PRN-17.txt             !  Input file name for Orb 58
+TRUE   Orb_GPS_PRN-18.txt             !  Input file name for Orb 59
+TRUE   Orb_GPS_PRN-19.txt             !  Input file name for Orb 60
+TRUE   Orb_GPS_PRN-20.txt             !  Input file name for Orb 61
+TRUE   Orb_GPS_PRN-21.txt             !  Input file name for Orb 62
+TRUE   Orb_GPS_PRN-23.txt             !  Input file name for Orb 63
+TRUE   Orb_GPS_PRN-24.txt             !  Input file name for Orb 64
+TRUE   Orb_GPS_PRN-25.txt             !  Input file name for Orb 65
+TRUE   Orb_GPS_PRN-26.txt             !  Input file name for Orb 66
+TRUE   Orb_GPS_PRN-27.txt             !  Input file name for Orb 67
+TRUE   Orb_GPS_PRN-28.txt             !  Input file name for Orb 68
+TRUE   Orb_GPS_PRN-29.txt             !  Input file name for Orb 69
+TRUE   Orb_GPS_PRN-30.txt             !  Input file name for Orb 70
+TRUE   Orb_GPS_PRN-31.txt             !  Input file name for Orb 71
+TRUE   Orb_GPS_PRN-32.txt             !  Input file name for Orb 72
+TRUE   Orb_Galileo_PRN-E01.txt             !  Input file name for Orb 73
+TRUE   Orb_Galileo_PRN-E02.txt             !  Input file name for Orb 74
+TRUE   Orb_Galileo_PRN-E03.txt             !  Input file name for Orb 75
+TRUE   Orb_Galileo_PRN-E04.txt             !  Input file name for Orb 76
+TRUE   Orb_Galileo_PRN-E05.txt             !  Input file name for Orb 77
+TRUE   Orb_Galileo_PRN-E07.txt             !  Input file name for Orb 78
+TRUE   Orb_Galileo_PRN-E08.txt             !  Input file name for Orb 79
+TRUE   Orb_Galileo_PRN-E09.txt             !  Input file name for Orb 80
+TRUE   Orb_Galileo_PRN-E10.txt             !  Input file name for Orb 81
+TRUE   Orb_Galileo_PRN-E11.txt             !  Input file name for Orb 82
+TRUE   Orb_Galileo_PRN-E12.txt             !  Input file name for Orb 83
+TRUE   Orb_Galileo_PRN-E13.txt             !  Input file name for Orb 84
+TRUE   Orb_Galileo_PRN-E14.txt             !  Input file name for Orb 85
+TRUE   Orb_Galileo_PRN-E15.txt             !  Input file name for Orb 86
+TRUE   Orb_Galileo_PRN-E18.txt             !  Input file name for Orb 87
+TRUE   Orb_Galileo_PRN-E19.txt             !  Input file name for Orb 88
+TRUE   Orb_Galileo_PRN-E20.txt             !  Input file name for Orb 89
+TRUE   Orb_Galileo_PRN-E21.txt             !  Input file name for Orb 90
+TRUE   Orb_Galileo_PRN-E22.txt             !  Input file name for Orb 91
+TRUE   Orb_Galileo_PRN-E24.txt             !  Input file name for Orb 92
+TRUE   Orb_Galileo_PRN-E25.txt             !  Input file name for Orb 93
+TRUE   Orb_Galileo_PRN-E26.txt             !  Input file name for Orb 94
+TRUE   Orb_Galileo_PRN-E27.txt             !  Input file name for Orb 95
+TRUE   Orb_Galileo_PRN-E30.txt             !  Input file name for Orb 96
+TRUE   Orb_Galileo_PRN-E31.txt             !  Input file name for Orb 97
+TRUE   Orb_Galileo_PRN-E33.txt             !  Input file name for Orb 98
+TRUE   Orb_Galileo_PRN-E34.txt             !  Input file name for Orb 99
+TRUE   Orb_Galileo_PRN-E36.txt             !  Input file name for Orb 100
+*****************************  Spacecraft  *****************************
+101                    !  Number of Spacecraft
+TRUE  0 SC_Rx_Con1-1.txt                !  Existence, RefOrb, Input file for SC 0
+TRUE  1 SC_MUOS_MUOS-1.txt                !  Existence, RefOrb, Input file for SC 1
+TRUE  2 SC_MUOS_MUOS-2.txt                !  Existence, RefOrb, Input file for SC 2
+TRUE  3 SC_MUOS_MUOS-3.txt                !  Existence, RefOrb, Input file for SC 3
+TRUE  4 SC_MUOS_MUOS-4.txt                !  Existence, RefOrb, Input file for SC 4
+TRUE  5 SC_MUOS_MUOS-5.txt                !  Existence, RefOrb, Input file for SC 5
+TRUE  6 SC_ORBCOMM_FM-004.txt                !  Existence, RefOrb, Input file for SC 6
+TRUE  7 SC_ORBCOMM_FM-005.txt                !  Existence, RefOrb, Input file for SC 7
+TRUE  8 SC_ORBCOMM_FM-006.txt                !  Existence, RefOrb, Input file for SC 8
+TRUE  9 SC_ORBCOMM_FM-007.txt                !  Existence, RefOrb, Input file for SC 9
+TRUE  10 SC_ORBCOMM_FM-008.txt                !  Existence, RefOrb, Input file for SC 10
+TRUE  11 SC_ORBCOMM_FM-009.txt                !  Existence, RefOrb, Input file for SC 11
+TRUE  12 SC_ORBCOMM_FM-010.txt                !  Existence, RefOrb, Input file for SC 12
+TRUE  13 SC_ORBCOMM_FM-011.txt                !  Existence, RefOrb, Input file for SC 13
+TRUE  14 SC_ORBCOMM_FM-012.txt                !  Existence, RefOrb, Input file for SC 14
+TRUE  15 SC_ORBCOMM_FM-013.txt                !  Existence, RefOrb, Input file for SC 15
+TRUE  16 SC_ORBCOMM_FM-014.txt                !  Existence, RefOrb, Input file for SC 16
+TRUE  17 SC_ORBCOMM_FM-015.txt                !  Existence, RefOrb, Input file for SC 17
+TRUE  18 SC_ORBCOMM_FM-018.txt                !  Existence, RefOrb, Input file for SC 18
+TRUE  19 SC_ORBCOMM_FM-019.txt                !  Existence, RefOrb, Input file for SC 19
+TRUE  20 SC_ORBCOMM_FM-020.txt                !  Existence, RefOrb, Input file for SC 20
+TRUE  21 SC_ORBCOMM_FM-021.txt                !  Existence, RefOrb, Input file for SC 21
+TRUE  22 SC_ORBCOMM_FM-023.txt                !  Existence, RefOrb, Input file for SC 22
+TRUE  23 SC_ORBCOMM_FM-027.txt                !  Existence, RefOrb, Input file for SC 23
+TRUE  24 SC_ORBCOMM_FM-030.txt                !  Existence, RefOrb, Input file for SC 24
+TRUE  25 SC_ORBCOMM_FM-031.txt                !  Existence, RefOrb, Input file for SC 25
+TRUE  26 SC_ORBCOMM_FM-032.txt                !  Existence, RefOrb, Input file for SC 26
+TRUE  27 SC_ORBCOMM_FM-034.txt                !  Existence, RefOrb, Input file for SC 27
+TRUE  28 SC_ORBCOMM_FM-035.txt                !  Existence, RefOrb, Input file for SC 28
+TRUE  29 SC_ORBCOMM_FM-036.txt                !  Existence, RefOrb, Input file for SC 29
+TRUE  30 SC_ORBCOMM_FM-103.txt                !  Existence, RefOrb, Input file for SC 30
+TRUE  31 SC_ORBCOMM_FM-107.txt                !  Existence, RefOrb, Input file for SC 31
+TRUE  32 SC_ORBCOMM_FM-108.txt                !  Existence, RefOrb, Input file for SC 32
+TRUE  33 SC_ORBCOMM_FM-109.txt                !  Existence, RefOrb, Input file for SC 33
+TRUE  34 SC_ORBCOMM_FM-110.txt                !  Existence, RefOrb, Input file for SC 34
+TRUE  35 SC_ORBCOMM_FM-112.txt                !  Existence, RefOrb, Input file for SC 35
+TRUE  36 SC_ORBCOMM_FM-113.txt                !  Existence, RefOrb, Input file for SC 36
+TRUE  37 SC_ORBCOMM_FM-114.txt                !  Existence, RefOrb, Input file for SC 37
+TRUE  38 SC_ORBCOMM_FM-115.txt                !  Existence, RefOrb, Input file for SC 38
+TRUE  39 SC_ORBCOMM_FM-116.txt                !  Existence, RefOrb, Input file for SC 39
+TRUE  40 SC_ORBCOMM_FM-117.txt                !  Existence, RefOrb, Input file for SC 40
+TRUE  41 SC_ORBCOMM_FM-118.txt                !  Existence, RefOrb, Input file for SC 41
+TRUE  42 SC_GPS_PRN-01.txt                !  Existence, RefOrb, Input file for SC 42
+TRUE  43 SC_GPS_PRN-02.txt                !  Existence, RefOrb, Input file for SC 43
+TRUE  44 SC_GPS_PRN-03.txt                !  Existence, RefOrb, Input file for SC 44
+TRUE  45 SC_GPS_PRN-04.txt                !  Existence, RefOrb, Input file for SC 45
+TRUE  46 SC_GPS_PRN-05.txt                !  Existence, RefOrb, Input file for SC 46
+TRUE  47 SC_GPS_PRN-06.txt                !  Existence, RefOrb, Input file for SC 47
+TRUE  48 SC_GPS_PRN-07.txt                !  Existence, RefOrb, Input file for SC 48
+TRUE  49 SC_GPS_PRN-08.txt                !  Existence, RefOrb, Input file for SC 49
+TRUE  50 SC_GPS_PRN-09.txt                !  Existence, RefOrb, Input file for SC 50
+TRUE  51 SC_GPS_PRN-10.txt                !  Existence, RefOrb, Input file for SC 51
+TRUE  52 SC_GPS_PRN-11.txt                !  Existence, RefOrb, Input file for SC 52
+TRUE  53 SC_GPS_PRN-12.txt                !  Existence, RefOrb, Input file for SC 53
+TRUE  54 SC_GPS_PRN-13.txt                !  Existence, RefOrb, Input file for SC 54
+TRUE  55 SC_GPS_PRN-14.txt                !  Existence, RefOrb, Input file for SC 55
+TRUE  56 SC_GPS_PRN-15.txt                !  Existence, RefOrb, Input file for SC 56
+TRUE  57 SC_GPS_PRN-16.txt                !  Existence, RefOrb, Input file for SC 57
+TRUE  58 SC_GPS_PRN-17.txt                !  Existence, RefOrb, Input file for SC 58
+TRUE  59 SC_GPS_PRN-18.txt                !  Existence, RefOrb, Input file for SC 59
+TRUE  60 SC_GPS_PRN-19.txt                !  Existence, RefOrb, Input file for SC 60
+TRUE  61 SC_GPS_PRN-20.txt                !  Existence, RefOrb, Input file for SC 61
+TRUE  62 SC_GPS_PRN-21.txt                !  Existence, RefOrb, Input file for SC 62
+TRUE  63 SC_GPS_PRN-23.txt                !  Existence, RefOrb, Input file for SC 63
+TRUE  64 SC_GPS_PRN-24.txt                !  Existence, RefOrb, Input file for SC 64
+TRUE  65 SC_GPS_PRN-25.txt                !  Existence, RefOrb, Input file for SC 65
+TRUE  66 SC_GPS_PRN-26.txt                !  Existence, RefOrb, Input file for SC 66
+TRUE  67 SC_GPS_PRN-27.txt                !  Existence, RefOrb, Input file for SC 67
+TRUE  68 SC_GPS_PRN-28.txt                !  Existence, RefOrb, Input file for SC 68
+TRUE  69 SC_GPS_PRN-29.txt                !  Existence, RefOrb, Input file for SC 69
+TRUE  70 SC_GPS_PRN-30.txt                !  Existence, RefOrb, Input file for SC 70
+TRUE  71 SC_GPS_PRN-31.txt                !  Existence, RefOrb, Input file for SC 71
+TRUE  72 SC_GPS_PRN-32.txt                !  Existence, RefOrb, Input file for SC 72
+TRUE  73 SC_Galileo_PRN-E01.txt                !  Existence, RefOrb, Input file for SC 73
+TRUE  74 SC_Galileo_PRN-E02.txt                !  Existence, RefOrb, Input file for SC 74
+TRUE  75 SC_Galileo_PRN-E03.txt                !  Existence, RefOrb, Input file for SC 75
+TRUE  76 SC_Galileo_PRN-E04.txt                !  Existence, RefOrb, Input file for SC 76
+TRUE  77 SC_Galileo_PRN-E05.txt                !  Existence, RefOrb, Input file for SC 77
+TRUE  78 SC_Galileo_PRN-E07.txt                !  Existence, RefOrb, Input file for SC 78
+TRUE  79 SC_Galileo_PRN-E08.txt                !  Existence, RefOrb, Input file for SC 79
+TRUE  80 SC_Galileo_PRN-E09.txt                !  Existence, RefOrb, Input file for SC 80
+TRUE  81 SC_Galileo_PRN-E10.txt                !  Existence, RefOrb, Input file for SC 81
+TRUE  82 SC_Galileo_PRN-E11.txt                !  Existence, RefOrb, Input file for SC 82
+TRUE  83 SC_Galileo_PRN-E12.txt                !  Existence, RefOrb, Input file for SC 83
+TRUE  84 SC_Galileo_PRN-E13.txt                !  Existence, RefOrb, Input file for SC 84
+TRUE  85 SC_Galileo_PRN-E14.txt                !  Existence, RefOrb, Input file for SC 85
+TRUE  86 SC_Galileo_PRN-E15.txt                !  Existence, RefOrb, Input file for SC 86
+TRUE  87 SC_Galileo_PRN-E18.txt                !  Existence, RefOrb, Input file for SC 87
+TRUE  88 SC_Galileo_PRN-E19.txt                !  Existence, RefOrb, Input file for SC 88
+TRUE  89 SC_Galileo_PRN-E20.txt                !  Existence, RefOrb, Input file for SC 89
+TRUE  90 SC_Galileo_PRN-E21.txt                !  Existence, RefOrb, Input file for SC 90
+TRUE  91 SC_Galileo_PRN-E22.txt                !  Existence, RefOrb, Input file for SC 91
+TRUE  92 SC_Galileo_PRN-E24.txt                !  Existence, RefOrb, Input file for SC 92
+TRUE  93 SC_Galileo_PRN-E25.txt                !  Existence, RefOrb, Input file for SC 93
+TRUE  94 SC_Galileo_PRN-E26.txt                !  Existence, RefOrb, Input file for SC 94
+TRUE  95 SC_Galileo_PRN-E27.txt                !  Existence, RefOrb, Input file for SC 95
+TRUE  96 SC_Galileo_PRN-E30.txt                !  Existence, RefOrb, Input file for SC 96
+TRUE  97 SC_Galileo_PRN-E31.txt                !  Existence, RefOrb, Input file for SC 97
+TRUE  98 SC_Galileo_PRN-E33.txt                !  Existence, RefOrb, Input file for SC 98
+TRUE  99 SC_Galileo_PRN-E34.txt                !  Existence, RefOrb, Input file for SC 99
+TRUE  100 SC_Galileo_PRN-E36.txt                !  Existence, RefOrb, Input file for SC 100
+***************************** Environment  *****************************
+1 1 2023                        !  Date (UTC) (Month, Day, Year)
+0 0 0.000000                     !  Time (UTC) (Hr,Min,Sec)
+37.0                            !  Leap Seconds (sec)
+NOMINAL                         !  F10.7, Ap (USER, NOMINAL or TWOSIGMA)
+230.0                           !  If USER_DEFINED, enter desired F10.7 value
+100.0                           !  If USER_DEFINED, enter desired AP value
+IGRF                            !  Magfield (NONE,DIPOLE,IGRF)
+8   8                           !  IGRF Degree and Order (<=10)
+8   8                           !  Earth Gravity Model N and M (<=18)
+2   0                           !  Mars Gravity Model N and M (<=18)
+2   0                           !  Luna Gravity Model N and M (<=18)
+FALSE   FALSE                   !  Aerodynamic Forces & Torques (Shadows)
+FALSE                           !  Gravity Gradient Torques          
+FALSE   FALSE                   !  Solar Pressure Forces & Torques (Shadows)
+FALSE                           !  Gravity Perturbation Forces
+FALSE                           !  Passive Joint Forces & Torques
+FALSE                           !  Thruster Plume Forces & Torques
+FALSE                           !  RWA Imbalance Forces and Torques
+FALSE                           !  Contact Forces and Torques
+FALSE                           !  CFD Slosh Forces and Torques
+FALSE                           !  Albedo Effect on CSS Measurements
+FALSE                           !  Output Environmental Torques to Files
+********************* Celestial Bodies of Interest *********************
+MEAN                            !  Ephem Option (MEAN or DE430)
+FALSE                           !  Mercury
+FALSE                           !  Venus
+TRUE                            !  Earth and Luna
+FALSE                           !  Mars and its moons
+FALSE                           !  Jupiter and its moons
+FALSE                           !  Saturn and its moons
+FALSE                           !  Uranus and its moons
+FALSE                           !  Neptune and its moons
+FALSE                           !  Pluto and its moons
+FALSE                           !  Asteroids and Comets
+***************** Lagrange Point Systems of Interest ******************
+FALSE                           !  Earth-Moon
+FALSE                           !  Sun-Earth
+FALSE                           !  Sun-Jupiter
+************************* Ground Stations ***************************
+0                                            ! Number of Ground Stations
+TRUE  EARTH  -77.0  37.0  "GSFC"             ! Exists, World, Lng, Lat, Label
+TRUE  EARTH  -155.6 19.0  "South Point"      ! Exists, World, Lng, Lat, Label
+TRUE  EARTH  115.4 -29.0  "Dongara"          ! Exists, World, Lng, Lat, Label
+TRUE  EARTH  -71.0 -33.0  "Santiago"         ! Exists, World, Lng, Lat, Label
+TRUE  LUNA   45.0  45.0   "Moon Base Alpha"  ! Exists, World, Lng, Lat, Label

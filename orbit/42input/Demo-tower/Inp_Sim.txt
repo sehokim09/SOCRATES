@@ -1,0 +1,87 @@
+<<<<<<<<<<<<<<<<<  42: The Mostly Harmless Simulator  >>>>>>>>>>>>>>>>>
+************************** Simulation Control **************************
+FAST                        !  Time Mode (FAST, REAL, or EXTERNAL)
+21600   1                   !  Sim Duration, Step Size [sec]
+10                          !  File Output Interval [sec]
+FALSE                       !  Graphics Front End?
+Inp_Cmd.txt                 !  Command Script File Name
+**************************  Reference Orbits  *************************
+15                                  !  Number of Reference Orbits
+TRUE   Orb_MUOS_1.txt               !  Input file name for Orb 8
+TRUE   Orb_MUOS_2.txt               !  Input file name for Orb 9
+TRUE   Orb_MUOS_3.txt               !  Input file name for Orb 10
+TRUE   Orb_MUOS_4.txt               !  Input file name for Orb 11
+TRUE   Orb_MUOS_5.txt               !  Input file name for Orb 11
+TRUE   Orb_ORBCOMM_FM107.txt        !  Input file name for Orb 37
+TRUE   Orb_ORBCOMM_FM108.txt        !  Input file name for Orb 38
+TRUE   Orb_ORBCOMM_FM109.txt        !  Input file name for Orb 39
+TRUE   Orb_ORBCOMM_FM110.txt        !  Input file name for Orb 40
+TRUE   Orb_ORBCOMM_FM112.txt        !  Input file name for Orb 41
+TRUE   Orb_ORBCOMM_FM113.txt        !  Input file name for Orb 42
+TRUE   Orb_ORBCOMM_FM114.txt        !  Input file name for Orb 43
+TRUE   Orb_ORBCOMM_FM116.txt        !  Input file name for Orb 45
+TRUE   Orb_ORBCOMM_FM117.txt        !  Input file name for Orb 46
+TRUE   Orb_ORBCOMM_FM118.txt        !  Input file name for Orb 47
+*****************************  Spacecraft  *****************************
+15                                 !  Number of Spacecraft
+TRUE  0 SC_MUOS_1.txt               !  Existence, RefOrb, Input file for SC 0
+TRUE  1 SC_MUOS_2.txt               !  Existence, RefOrb, Input file for SC 0
+TRUE  2 SC_MUOS_3.txt              !  Existence, RefOrb, Input file for SC 0
+TRUE  3 SC_MUOS_4.txt              !  Existence, RefOrb, Input file for SC 0
+TRUE  4 SC_MUOS_5.txt              !  Existence, RefOrb, Input file for SC 0
+TRUE  5 SC_ORBCOMM_FM107.txt       !  Existence, RefOrb, Input file for SC 40
+TRUE  6 SC_ORBCOMM_FM108.txt       !  Existence, RefOrb, Input file for SC 41
+TRUE  7 SC_ORBCOMM_FM109.txt       !  Existence, RefOrb, Input file for SC 42
+TRUE  8 SC_ORBCOMM_FM110.txt       !  Existence, RefOrb, Input file for SC 43
+TRUE  9 SC_ORBCOMM_FM112.txt       !  Existence, RefOrb, Input file for SC 44 
+TRUE  10 SC_ORBCOMM_FM113.txt       !  Existence, RefOrb, Input file for SC 45 
+TRUE  11 SC_ORBCOMM_FM114.txt       !  Existence, RefOrb, Input file for SC 46 
+TRUE  12 SC_ORBCOMM_FM116.txt       !  Existence, RefOrb, Input file for SC 48
+TRUE  13 SC_ORBCOMM_FM117.txt       !  Existence, RefOrb, Input file for SC 49
+TRUE  14 SC_ORBCOMM_FM118.txt       !  Existence, RefOrb, Input file for SC 50 
+***************************** Environment  *****************************
+9 27 2021                       !  Date (UTC) (Month, Day, Year)
+20 00 00.00                     !  Time (UTC) (Hr,Min,Sec)
+37.0                            !  Leap Seconds (sec)
+NOMINAL                         !  F10.7, Ap (USER, NOMINAL or TWOSIGMA)
+230.0                           !  If USER_DEFINED, enter desired F10.7 value
+100.0                           !  If USER_DEFINED, enter desired AP value
+IGRF                            !  Magfield (NONE,DIPOLE,IGRF)
+8   8                           !  IGRF Degree and Order (<=10)
+8   8                           !  Earth Gravity Model N and M (<=18)
+2   0                           !  Mars Gravity Model N and M (<=18)
+2   0                           !  Luna Gravity Model N and M (<=18)
+TRUE   FALSE                   !  Aerodynamic Forces & Torques (Shadows)
+TRUE                           !  Gravity Gradient Torques          
+TRUE   FALSE                   !  Solar Pressure Forces & Torques (Shadows)
+TRUE                           !  Gravity Perturbation Forces
+FALSE                           !  Passive Joint Forces & Torques
+FALSE                           !  Thruster Plume Forces & Torques
+FALSE                           !  RWA Imbalance Forces and Torques
+FALSE                           !  Contact Forces and Torques
+FALSE                           !  CFD Slosh Forces and Torques
+FALSE                           !  Albedo Effect on CSS Measurements
+FALSE                           !  Output Environmental Torques to Files
+********************* Celestial Bodies of Interest *********************
+MEAN                            !  Ephem Option (MEAN or DE430)
+FALSE                           !  Mercury
+FALSE                           !  Venus
+TRUE                            !  Earth and Luna
+FALSE                           !  Mars and its moons
+FALSE                           !  Jupiter and its moons
+FALSE                           !  Saturn and its moons
+FALSE                           !  Uranus and its moons
+FALSE                           !  Neptune and its moons
+FALSE                           !  Pluto and its moons
+FALSE                           !  Asteroids and Comets
+***************** Lagrange Point Systems of Interest ******************
+FALSE                           !  Earth-Moon
+FALSE                           !  Sun-Earth
+FALSE                           !  Sun-Jupiter
+************************* Ground Stations ***************************
+0                                            ! Number of Ground Stations
+TRUE  EARTH  -77.0  37.0  "GSFC"             ! Exists, World, Lng, Lat, Label
+TRUE  EARTH  -155.6 19.0  "South Point"      ! Exists, World, Lng, Lat, Label
+TRUE  EARTH  115.4 -29.0  "Dongara"          ! Exists, World, Lng, Lat, Label
+TRUE  EARTH  -71.0 -33.0  "Santiago"         ! Exists, World, Lng, Lat, Label
+TRUE  LUNA   45.0  45.0   "Moon Base Alpha"  ! Exists, World, Lng, Lat, Label
