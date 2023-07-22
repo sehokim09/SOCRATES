@@ -52,7 +52,7 @@ function createFoM(projName, DesignParamsObj)
                         for iNplane = 1 : nNplane
                             consName(iNrx, iAlt, iInc, iNplane) = sprintf("%d_%d_%s_%d", nRx(iNrx), alt(iAlt), inc(iInc), nPlane(iNplane));
                             dir_spdata(iNrx, iAlt, iInc, iNplane) = fullfile(dir_largefiles, consName(iNrx, iAlt, iInc, iNplane));
-                            filename_perform(iNrx, iAlt, iInc, iNplane) = strcat(consName(iNrx, iAlt, iInc, iNplane), "_perform_newRCG.nc");
+                            filename_perform(iNrx, iAlt, iInc, iNplane) = strcat(consName(iNrx, iAlt, iInc, iNplane), "_perform.nc");
                             filename_cost(iNrx, iAlt, iInc, iNplane) = strcat(consName(iNrx, iAlt, iInc, iNplane), "_cost.nc");
                         end
                     end
