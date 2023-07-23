@@ -69,7 +69,7 @@ function createFoM(projName, DesignParamsObj)
             nNplane = 1;
             consName(1, 1, 1, 1) = string(DesignParamsObj.hybrid.name);
             dir_spdata(1, 1, 1, 1) = fullfile(dir_largefiles, consName(1, 1, 1, 1));
-            filename_perform(1, 1, 1, 1) = strcat(consName(1, 1, 1, 1), "_perform_newRCG.nc");
+            filename_perform(1, 1, 1, 1) = strcat(consName(1, 1, 1, 1), "_perform.nc");
             filename_cost(1, 1, 1, 1) = strcat(consName(1, 1, 1, 1), "_cost.nc");
     end
 
