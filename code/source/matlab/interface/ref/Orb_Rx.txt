@@ -9,7 +9,7 @@ FALSE                         ! Use Polyhedron Gravity
 FALSE                         ! Use Polyhedron Gravity
 ::::::::::::::  Use these lines if CENTRAL        :::::::::::::::::
 EARTH                         !  Orbit Center
-TRUE                          !  Secular Orbit Drift Due to J2
+FALSE                         !  Secular Orbit Drift Due to J2
 FILE                          !  Use Keplerian elements (KEP) or (RV) or FILE
 PA                            !  Use Peri/Apoapsis (PA) or min alt/ecc (AE)
 500.0      500.0              !  Periapsis & Apoapsis Altitude, km

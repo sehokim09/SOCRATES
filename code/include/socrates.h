@@ -238,6 +238,7 @@ void ReportAccessTime(struct ScType *Rx);
 // design.c
 void ConsDesign(int argc,char **argv);
 void orbitPropagator(void);
+void orbitMotion(void);
 
 // retrieval.c
 void initRetMode(int argc, char **argv);

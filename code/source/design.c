@@ -953,6 +953,8 @@ void initOrbit(void)
             if (Orb[Iorb].Exists) InitOrbit(&Orb[Iorb]);
         }
     }
+    
+    orbitMotion();
 }
 
 void initSC(void)
@@ -3571,15 +3573,47 @@ void observationMultiThread(void)
 	}
 }
 
-void orbitMotion(void)
+void importOrbit(void)
 {
-    struct OrbitType *O;
     struct SCType *S;
     long Iorb, i, j;
 
     // Receiver propagation
     for(Iorb=0; Iorb<NRx; Iorb++){
         S = &SC[Iorb];
+        // Update Position, Velocity, and CLN
+        for(i=0; i<3; i++){
+            RxSc[Iorb].PosN[i] = S->PosN[i];
+            RxSc[Iorb].VelN[i] = S->VelN[i];
+            for(j=0; j<3; j++){
+                RxSc[Iorb].CLN[i][j] = S->CLN[i][j];
+            }
+        }
+    }
+    
+    // Transmitter Propagation
+    if(Design->flagTxPropagation){
+        for(Iorb=NRx; Iorb<Norb; Iorb++){
+            S = &SC[Iorb];
+            // Update Position, Velocity, and CLN
+            for(i=0; i<3; i++){
+                TxSc[Iorb-NRx].PosN[i] = S->PosN[i];
+                TxSc[Iorb-NRx].VelN[i] = S->VelN[i];
+                for(j=0; j<3; j++){
+                    TxSc[Iorb-NRx].CLN[i][j] = S->CLN[i][j];
+                }
+            }
+        }
+    }
+}
+
+void orbitMotion(void)
+{
+    struct OrbitType *O;
+    long Iorb;
+
+    // Receiver propagation
+    for(Iorb=0; Iorb<NRx; Iorb++){
         O = &Orb[Iorb];
         // Receiver orbit rectification
         /*for(i=0;i<3;i++) {
@@ -3603,21 +3637,11 @@ void orbitMotion(void)
                     O->PosN,O->VelN,&O->anom);
         }
         FindCLN(O->PosN,O->VelN,O->CLN,O->wln);
-
-        // Update Position, Velocity, and CLN
-        for(i=0; i<3; i++){
-            RxSc[Iorb].PosN[i] = S->PosN[i];
-            RxSc[Iorb].VelN[i] = S->VelN[i];
-            for(j=0; j<3; j++){
-                RxSc[Iorb].CLN[i][j] = O->CLN[i][j];
-            }
-        }
     }
     
     // Transmitter Propagation
     if(Design->flagTxPropagation){
         for(Iorb=NRx; Iorb<Norb; Iorb++){
-            S = &SC[Iorb];
             O = &Orb[Iorb];
             // Propagation
             if (O->J2DriftEnabled) MeanEph2RV(O,DynTime);
@@ -3629,15 +3653,6 @@ void orbitMotion(void)
             }
             /* Update CLN */
             FindCLN(O->PosN,O->VelN,O->CLN,O->wln);
-
-            // Update Position, Velocity, and CLN
-            for(i=0; i<3; i++){
-                TxSc[Iorb-NRx].PosN[i] = S->PosN[i];
-                TxSc[Iorb-NRx].VelN[i] = S->VelN[i];
-                for(j=0; j<3; j++){
-                    TxSc[Iorb-NRx].CLN[i][j] = O->CLN[i][j];
-                }
-            }
         }
     }
 }
@@ -3659,8 +3674,7 @@ void orbitPropagator(void)
     long ProgressPercent = 0;
     long ProgressCtr = 0;
     double ProgressTime = 0.0;
-
-    orbitMotion();
+    
     // First call just initializes timer 
     RealRunTime(&TotalRunTime,DTSIM);
 
@@ -3705,25 +3719,9 @@ void orbitPropagator(void)
 
         orbitMotion();
         
-        // Transmitter Propagation
-        if(Design->flagTxPropagation){
-            if(taskid == MASTER)
-                reportTxOrbit(SimComplete); // Uncomment this to generate Tx trajectory files
-        }
-        else{
-            readTxOrbit(SimComplete);
-            //if(taskid == MASTER) // Read transmitter data
-                //broadcastTxOrbit();
-        }
-        //reportRxOrbit(SimComplete);  // File Output 
-        
         Ephemerides(); // Sun, Moon, Planets, Spacecraft, Useful Auxiliary Frames 
         ZeroFrcTrq();
 
-        // SoOp-R observation
-        observation();
-        //observationMultiThread();
-        /*
         for(Isc=0;Isc<Design->nRx;Isc++) {
             S = &SC[Isc];
             if (S->Exists) {
@@ -3735,7 +3733,25 @@ void orbitPropagator(void)
                 PartitionForces(S); // Orbit-affecting and "internal"
             }
         }
-        */
+
+        // Update orbit data
+        importOrbit();
+        // Transmitter Propagation
+        if(Design->flagTxPropagation){
+            if(taskid == MASTER)
+                reportTxOrbit(SimComplete);
+        }
+        else{
+            readTxOrbit(SimComplete);
+            //if(taskid == MASTER) // Read transmitter data
+                //broadcastTxOrbit();
+        }
+        //reportRxOrbit(SimComplete);  // File Output 
+        
+        // SoOp-R observation
+        observation();
+        //observationMultiThread();
+
         //if(SimTime > ProgressTime/5){
         //    printf("Task %d >> Reopen NetCDF at Time = %12.3lf\n", taskid, SimTime);
         //}

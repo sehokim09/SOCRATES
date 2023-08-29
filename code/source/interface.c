@@ -85,18 +85,16 @@ void Import42(void)
 {
 	struct ScType *ScSoOp;
 	struct SCType *Sc42;
-	struct OrbitType *Orb42;
 	long iSc, i, j;
 
 	for(iSc=0; iSc<NSc; iSc++){
 		ScSoOp = &Sc[iSc];
 		Sc42 = &SC[iSc];
-		Orb42 = &Orb[iSc];
 		for(i=0; i<3; i++){
 			ScSoOp->PosN[i] = Sc42->PosN[i];
 			ScSoOp->VelN[i] = Sc42->VelN[i];
 			for(j=0; j<3; j++){
-				ScSoOp->CLN[i][j] = Orb42->CLN[i][j];
+				ScSoOp->CLN[i][j] = Sc42->CLN[i][j];
 			}
 		}
 	}

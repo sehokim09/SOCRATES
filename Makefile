@@ -243,11 +243,11 @@ $(OBJ42)timekit.o     : $(KIT42SRC)timekit.c
 ########################  Miscellaneous Rules  ############################
 clean :
 ifeq ($(PLATFORM),_WIN32)
-	del .\obj\*.o .\$(EXENAME)
+	del .\$(OBJ)\*.o .\$(OBJ42)\*.o .\$(EXENAME)
 else ifeq ($(PLATFORM),_WIN64)
-	del .\obj\*.o .\$(EXENAME)
+	del .\$(OBJ)\*.o .\$(OBJ42)\*.o .\$(EXENAME)
 else
-	rm -f $(OBJ)*.o
+	rm -f $(OBJ)*.o $(OBJ42)*.o
 endif
 
 

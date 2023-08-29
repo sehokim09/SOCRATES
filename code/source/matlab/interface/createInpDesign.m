@@ -142,9 +142,9 @@ function createInpDesign(projPath, DesignParamsObj)
             DesignParamsObj.TxComb(iTxComb).antPatGG.HPBW_deg, DesignParamsObj.TxComb(iTxComb).antPatGG.SLL_dB, DesignParamsObj.TxComb(iTxComb).antPatGG.XPL_dB, DesignParamsObj.TxComb(iTxComb).antPatGG.res_deg);
         
         [~, filename, ext] = fileparts(DesignParamsObj.TxComb(iTxComb).antPatFilepath.Co);
-        antPatCo = [filename, ext];
+        antPatCo = strcat(filename, ext);
         [~, filename, ext] = fileparts(DesignParamsObj.TxComb(iTxComb).antPatFilepath.X);
-        antPatX = [filename, ext];
+        antPatX = strcat(filename, ext);
         
         texts(idxLastLine+7+DesignParamsObj.TxComb(iTxComb).nTx) = sprintf("%s ! (USER_DEFINED) Rx Ant Pat Co-pol File\n", ...
             antPatCo);

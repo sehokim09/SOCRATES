@@ -2,8 +2,8 @@
 Rx           !  Description
 "Cube 6"                      !  Label
 GenScSpriteAlpha.ppm          !  Sprite File Name
-RX_FSW                        !  Flight Software Identifier
-10.0                           !  FSW Sample Time, sec
+PASSIVE_FSW                   !  Flight Software Identifier
+10.0                          !  FSW Sample Time, sec
 ************************* Orbit Parameters ****************************
 ENCKE                         !  Orbit Prop FIXED, EULER_HILL, ENCKE, or COWELL
 CM                            !  Pos of CM or ORIGIN, wrt F

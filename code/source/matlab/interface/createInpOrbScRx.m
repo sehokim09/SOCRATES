@@ -26,7 +26,7 @@ function createInpOrbScRx(orbPath, configData)
 
     % Set paths
     orbFilePath = fullfile(cd, 'code', 'source', 'matlab', 'interface', 'ref', 'Orb_Rx.txt');
-    scRxFilePath = fullfile(cd, 'code', 'source', 'matlab', 'interface', 'ref', 'SC.txt');
+    scRxFilePath = fullfile(cd, 'code', 'source', 'matlab', 'interface', 'ref', 'SC_Rx.txt');
     parentPath = fileparts(orbPath);
     orbFolderPath = fullfile(parentPath, 'Orb');
     scFolderPath = fullfile(parentPath, 'SC');
