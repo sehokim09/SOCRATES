@@ -85,10 +85,10 @@ IGRF                            !  Magfield (NONE,DIPOLE,IGRF)
 8   8                           !  Earth Gravity Model N and M (<=18)
 2   0                           !  Mars Gravity Model N and M (<=18)
 2   0                           !  Luna Gravity Model N and M (<=18)
-FALSE   FALSE                   !  Aerodynamic Forces & Torques (Shadows)
-FALSE                           !  Gravity Gradient Torques          
-FALSE   FALSE                   !  Solar Pressure Forces & Torques (Shadows)
-FALSE                           !  Gravity Perturbation Forces
+TRUE   FALSE                   !  Aerodynamic Forces & Torques (Shadows)
+TRUE                           !  Gravity Gradient Torques          
+TRUE   FALSE                   !  Solar Pressure Forces & Torques (Shadows)
+TRUE                           !  Gravity Perturbation Forces
 FALSE                           !  Passive Joint Forces & Torques
 FALSE                           !  Thruster Plume Forces & Torques
 FALSE                           !  RWA Imbalance Forces and Torques
