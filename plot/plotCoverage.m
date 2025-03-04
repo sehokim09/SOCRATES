@@ -19,16 +19,16 @@ TxName = {'GPS'};
 nRx = 1;
 nTx = length(TxName);
 
-
 %% CONSTANTS
 M_TO_KM = 1E-3;
-
 
 %% GET DIRECTORIES
 dir_parent = fileparts(pwd);
 dir_out = strcat(dir_parent, '/sim/Demo-space/out/');
 dir_figure = strcat(pwd, '/figure/');
-
+if ~exist(dir_figure, 'dir')
+    mkdir(dir_figure)
+end
 
 %% READ DATA
 opts = delimitedTextImportOptions('Delimiter', ' ', 'VariableTypes', 'double');
