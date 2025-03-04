@@ -50,8 +50,7 @@ function TxScParams = updateTxSc(TxConName, dir, src, flagTLEupdate)
             fclose(fileID_src);
         case 'ORBCOMM'
             filename_src = 'TLE_from_CelesTrak_ORBCOMM.txt';
-            filename_web = 'https://celestrak.com/NORAD/elements/orbcomm.txt';
-            filePath = fullfile(dir, filename_src);
+            filename_web = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=orbcomm&FORMAT=tle';
             filePath = fullfile(dir, filename_src);
             checkTLEfile(filePath, src, filename_web);
             fileID_src = fopen(filePath, 'r');
