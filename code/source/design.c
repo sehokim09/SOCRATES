@@ -396,7 +396,7 @@ void freeSC(void)
 // Input: altitude in km, Output: inclination in deg
 double calcSSOinc(double alt)
 {   
-    double rp, ra, sma, ecc = 0, mm, slr, ipar0, inc0, inc1, pmm;
+    double rp, ra, sma, ecc = 0, mm, slr, ipar0, inc0, inc1 = 0.0, pmm;
     double drdt;
     int niter;
     double j2, req, mu;
@@ -2196,6 +2196,55 @@ void writeCostNc(void)
         ERR(retval)
 }
 
+int initSAImodel(modelSAI *SAI, const char *TxName, tableCDF *cdf_table)
+{
+    // RZSM Error Model for LHCP Reflectivity, 4 frequency bands (137, 255, 370, 1575.42 MHz)
+    double a_SM_eta = (0.6222+0.6385)/2;
+    double a_SM_T = (2.542e-4 + 2.277e-4)/2;
+    double b_SM = (0.0844 + 0.0789 + 0.0810 + 0.0803)/4;
+    double RMSE_SM_target = 0.09;
+    double T = 12;
+    double eta_max_avg = 1/a_SM_eta * sqrt((RMSE_SM_target - b_SM)*(RMSE_SM_target - b_SM) - (a_SM_T*T)*(a_SM_T*T));
+    double N_incoh[3] = {100, 50, 1000}; // Number of incoherent samples averaged in the reflectivity measurement
+    double eta_max_single;
+    double eta_bar_single;
+    double BW_signal[3] = {16e3, 25e3, 5e6}; // Signal bandwidth in Hz
+    double T_integ[3] = {0.01, 0.02, 0.001}; // Integration time in sec
+    double S0[3] = {1.247913816202226e+15, 7.289963274631603e+15, 6.892428308691730e+14};
+    double alpha_threshold[3] = {3.737435820648506e+15, 5.492451164628094e+16, 2.498832837131167e+17};
+    int iSoOp;
+
+    if(!strcmp(TxName, "ORBCOMM")){
+        iSoOp = 0;
+    }
+    else if(!strcmp(TxName, "UFO")){
+        iSoOp = 1;
+    }
+    else if(!strcmp(TxName, "MUOS")){
+        iSoOp = 2;
+    }
+    else{
+        fprintf(stderr, "Unsupported TxName: %s\n", TxName);
+        return -1;
+    }
+    eta_max_single = eta_max_avg * sqrt(N_incoh[iSoOp]);
+    eta_bar_single = sqrt(sqrt(eta_max_single*eta_max_single + 1) - 1);
+
+    SAI->S0 = S0[iSoOp];
+    SAI->alpha_threshold = alpha_threshold[iSoOp];
+    SAI->eta_bar_single = eta_bar_single;
+    SAI->N_coh = T_integ[iSoOp]*BW_signal[iSoOp]; // Number of coherent samples in the integration time
+    SAI->gamma = 0.8;
+
+    // Read reflectivity CDF table
+    SAI->X = get_x_column(cdf_table, iSoOp); // Get the x column for the current SoOp from the CDF table
+    if (!SAI->X) {
+        fprintf(stderr, "Unsupported SoOp: %d\n", iSoOp);
+        return -1;
+    }
+    return 0;
+}
+
 void readSpDataNc(int iteration)
 {
     // IDs for the netCDF file, dimensions, and variables.
@@ -2213,11 +2262,15 @@ void readSpDataNc(int iteration)
     // Flag
     int flagValid;
     // For RCG constraints
-    double RCG_D, RCG_R, antGainD, antGainR;
+    double RCG_R, antGainD, antGainR;
     //double threshold_RCG_D[3] = {2.51353004264460e-15, 4.70350610913321e-16, 1.28655266830211e-16};
     struct DesignSoOpType *DS;
     // Grid
     struct EASEgridType *G;
+    // CDF table for SAI model
+    tableCDF cdf_table;
+    // SAI model
+    modelSAI SAI;
 
     // Reset variables
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
@@ -2228,6 +2281,10 @@ void readSpDataNc(int iteration)
                     Design->griddata[iSoOp][iRow][iCol][iSp] = 0;
             }
         }
+    }
+
+    if (read_cdf_table("reflectivity_cdf_table.txt", &cdf_table) != 0) {
+        exit(1);
     }
     
     /* Create the file. */
@@ -2243,7 +2300,13 @@ void readSpDataNc(int iteration)
             ERR(retval);
             
         for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-            DS = &Design->SoOp[iSoOp];
+            DS = &Design->SoOp[iSoOp];      
+
+            if(!strcmp(DS->name, "ORBCOMM") || !strcmp(DS->name, "UFO") || !strcmp(DS->name, "MUOS")){
+                if (initSAImodel(&SAI, DS->name, &cdf_table) != 0) {
+                    exit(1);
+                }
+            }
             for(iTx=0; iTx<DS->nTx; iTx++){
                 strcpy(TxName, DS->TxName[iTx]);
                 sprintf(dimName, "nSp_%s", TxName);
@@ -2374,7 +2437,8 @@ void readSpDataNc(int iteration)
                     /* Read the data. */
                     if ((retval = nc_get_var_double(Design->ncID[iRx], Design->ncRangeSRID[iRx][iSoOp], &Design->accessRangeSR[0])))
                         ERR(retval);
-                    if(!strcmp(DS->name, "MUOS")){
+
+                    if(!strcmp(TxName, "MUOS")){
                         Design->accessSpotbeam = (int *) realloc(Design->accessSpotbeam, sizeof(int)*dimNSp);
                         if (Design->accessSpotbeam == NULL) {
                             printf("Design->accessSpotbeam calloc returned null pointer.  Bailing out!\n");
@@ -2388,9 +2452,9 @@ void readSpDataNc(int iteration)
                         if ((retval = nc_get_var_int(Design->ncID[iRx], Design->ncFlagSpotbeamID[iRx], &Design->accessSpotbeam[0])))
                             ERR(retval);
                     }
+                    
                     for(iSp=0; iSp<dimNSp; iSp++){
-
-                        if(!strcmp(DS->name, "MUOS"))
+                        if(!strcmp(TxName, "MUOS"))
                             flagValid = Design->accessSpotbeam[iSp];
                         else
                             flagValid = TRUE;
@@ -2425,7 +2489,7 @@ void readSpDataNc(int iteration)
                                 antGainR = cabs(Bistatic->g_rs[0][1])*cabs(Bistatic->g_rs[0][1]) * DS->G_Rx_num;
 
                                 // Check RCG constraints
-                                if(!strcmp(TxName, "GPS")){
+                                if(!strcmp(TxName, "GPS") || !strcmp(TxName, "Galileo") || !strcmp(TxName, "Beidou") || !strcmp(TxName, "GLONASS")){
                                     RCG_R = antGainR / (Design->accessRangeTS[iSp]*Design->accessRangeTS[iSp]) / (Design->accessRangeSR[iSp]*Design->accessRangeSR[iSp]);
                                     if(RCG_R > Design->minReflectRCG)
                                         flagValid = TRUE;
@@ -2433,15 +2497,30 @@ void readSpDataNc(int iteration)
                                         flagValid = FALSE;
                                 }
                                 else{
-                                    RCG_R = antGainR / (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]) / (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]);
+                                    // Test 1
                                     antGainD = cabs(Bistatic->g_rt[0][0])*cabs(Bistatic->g_rt[0][0]) * DS->G_Rx_num;
-                                    RCG_D = antGainD / Design->accessRangeTR[iSp] / Design->accessRangeTR[iSp];
-
-                                    //if(RCG_D > threshold_RCG_D[iSoOp])
-                                    if(fabs(10*log10(RCG_D) - 10*log10(RCG_R)) < Design->maxRCGdiff)
-                                        flagValid = TRUE;
-                                    else
+                                    SAI.alpha = Design->accessRangeTR[iSp] * Design->accessRangeTR[iSp] / antGainD;
+                                    if (SAI.alpha < SAI.alpha_threshold){
+                                        // Test 2
+                                        SAI.beta = antGainR * Design->accessRangeTR[iSp] * Design->accessRangeTR[iSp] / (antGainD * (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]) * (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]));
+                                        SAI.SD = SAI.S0 / SAI.alpha;
+                                        SAI.ND = 1 + 1/SAI.SD;
+                                        SAI.C = (1 + SAI.eta_bar_single * SAI.N_coh - 2 * SAI.ND) / 2;
+                                        SAI.Gamma_upper = (SAI.C + sqrt(SAI.C*SAI.C - SAI.ND*SAI.ND)) / SAI.beta;
+                                        SAI.Gamma_lower = (SAI.C - sqrt(SAI.C*SAI.C - SAI.ND*SAI.ND)) / SAI.beta;
+                                        SAI.F_upper = lookup_F_from_x(SAI.X, cdf_table.F, cdf_table.n, SAI.Gamma_upper);
+                                        SAI.F_lower = lookup_F_from_x(SAI.X, cdf_table.F, cdf_table.n, SAI.Gamma_lower);
+                                        
+                                        if( (SAI.F_upper - SAI.F_lower) > SAI.gamma){
+                                            flagValid = TRUE;
+                                        }
+                                        else{
+                                            flagValid = FALSE;
+                                        }
+                                    }
+                                    else{
                                         flagValid = FALSE;
+                                    }
                                 }
 
                                 // Sort data into a grid
@@ -3408,7 +3487,7 @@ void observation(void)
         free(TxNum);
 	}
 }
-
+/*
 void observationMultiThread(void)
 {
     omp_set_num_threads(1);
@@ -3492,7 +3571,7 @@ void observationMultiThread(void)
                     TrackingSpotbeam(Tx, &SpotBeam[Tx->ID - S->RefOrbFirst]);
                 }
                 
-				//* .. Determine Specular Reflection Point on GRS80 in ECEF coordinate system .. *//
+				// .. Determine Specular Reflection Point on GRS80 in ECEF coordinate system .. //
                 if(iRx == 0)
                     printf("%lf 1 Thread %ld, Rx = %lf %lf %lf, Tx %ld = %lf %lf %lf, Sp = %lf %lf %lf\n", SimTime, iRx, RxLat*R2D, RxLon*R2D, RxAlt/1e3, Sp->TxID, TxLat*R2D, TxLon*R2D, TxAlt/1e3, Sp->lat*R2D, Sp->lon*R2D, Sp->alt/1e3);
 				GainAdjustUD(Tx, Sp);
@@ -3572,7 +3651,7 @@ void observationMultiThread(void)
         free(TxCntTotal);
 	}
 }
-
+*/
 void importOrbit(void)
 {
     struct SCType *S;

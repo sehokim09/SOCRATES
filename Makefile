@@ -49,9 +49,11 @@ KIT42SRC = $(KIT42DIR)Source/
 
 ifeq ($(PLATFORM),__APPLE__)
 	# Mac Macros
-	CINC = -I /usr/include
+#	CINC = -I /usr/include
+	CINC = -I /opt/homebrew/include
 	LIBS = -framework System -lnetcdf
-	LFLAGS = -bind_at_load $(OPENMPFLAG)
+#	LFLAGS = -bind_at_load $(OPENMPFLAG)
+	LFLAGS = -L/opt/homebrew/lib
 	# ARCHFLAG = -arch i386
 	# ARCHFLAG = -arch x86_64
 	ARCHFLAG = -arch arm64
@@ -95,7 +97,7 @@ KIT42OBJ = $(OBJ42)dcmkit.o $(OBJ42)envkit.o $(OBJ42)fswkit.o $(OBJ42)geomkit.o 
 $(OBJ42)iokit.o $(OBJ42)mathkit.o $(OBJ42)nrlmsise00kit.o $(OBJ42)msis86kit.o \
 $(OBJ42)orbkit.o $(OBJ42)radbeltkit.o $(OBJ42)sigkit.o $(OBJ42)sphkit.o $(OBJ42)timekit.o
 
-CFLAGS = -Wall -Wshadow -Wno-deprecated -g $(GLINC) $(CINC) -I $(INC) -I $(SRC) -I $(INC42) -I $(KIT42INC) -I $(KIT42SRC) -O0 $(ARCHFLAG) $(TIMEFLAG) $(OPENMPFLAG)
+CFLAGS = -Wall -Wshadow -Wno-deprecated -g $(GLINC) $(CINC) -I $(INC) -I $(SRC) -I $(INC42) -I $(KIT42INC) -I $(KIT42SRC) -O0 $(ARCHFLAG) $(TIMEFLAG)
 #-fno-stack-protector 
 
 ##########################  Rules to link SoOp  #############################

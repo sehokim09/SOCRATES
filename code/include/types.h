@@ -1147,4 +1147,32 @@ struct GsType{
 	double *t_acc_end; // Ending time of access interval
 };
 
+typedef struct {
+    double *F;
+    double *X137;
+    double *X255;
+    double *X370;
+    size_t n;
+} tableCDF;
+
+typedef struct{
+	double S0;
+	double alpha_threshold;
+	double eta_bar_single;
+	double N_coh;
+	const double *X;
+
+	double alpha;
+	double beta;
+	double SD;
+	double ND;
+	double C;
+	double Gamma_upper;
+	double Gamma_lower;
+
+	double F_upper;
+	double F_lower;
+	double gamma;
+} modelSAI;
+
 #endif

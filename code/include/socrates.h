@@ -32,7 +32,7 @@
 #include "netcdf.h"
 #include "sys/stat.h"
 #include <float.h>
-#include "omp.h"
+//#include "omp.h"
 //#include "fftw3.h"
 
 EXTERN char SimPath[30];
@@ -215,6 +215,9 @@ void LoadSnowCover(void);
 void LL2EzRC1km(double lat, double lon, uint16_t *row, uint16_t *col);
 void LL2EzRC9km(double lat, double lon, uint16_t *row, uint16_t *col);
 void LL2EzRC(struct GridType *G, double lat, double lon, uint16_t *row, uint16_t *col);
+int read_cdf_table(const char *filename, tableCDF *table);
+const double *get_x_column(const tableCDF *table, int iSoOp);
+double lookup_F_from_x(const double *X, const double *F, size_t n, double x);
 
 // init.c
 void Welcome(void);

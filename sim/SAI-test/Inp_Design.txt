@@ -1,0 +1,105 @@
+<<<<<<<<<<<<<<<  Constellation Design Description File  >>>>>>>>>>>>>>>>
+WALKER                    ! Constellation Type (WALKER, HYBRID)
+========================= Design Variables =============================
+1                         ! Number of # Receiver Variable
+1    ! # Receiver
+------------------------------------------------------------------------
+1                         ! Number of Altitude Variable
+500        ! Altitude [km]
+------------------------------------------------------------------------
+1                         ! Number of Inclination Variable
+50        ! Inclination [deg]
+------------------------------------------------------------------------
+1                         ! Number of # Orbital Plane Variable
+1        ! # Orbital Plane
+======================= Hybrid Design Variables ========================
+Hybrid-1                  ! Constellation Name
+3        ! # Orbital Plane
+------------------------------- Plane 1 -------------------------------
+8                        ! # Receiver
+500.000000                     ! Altitude [km]
+50                     ! Inclination [deg]
+------------------------------- Plane 2 -------------------------------
+8                        ! # Receiver
+500.000000                     ! Altitude [km]
+50                     ! Inclination [deg]
+------------------------------- Plane 3 -------------------------------
+8                        ! # Receiver
+500.000000                     ! Altitude [km]
+SSO                     ! Inclination [deg]
+========================= Other Parameters ===========================
+FALSE                     ! Real-time Transmitter Propagation
+12.000000               ! Observation Time Window [hour]
+15.000000               ! Minimum Reflected RCG for GPS [1E-27m^-4]
+0.000000               ! Minimum Direct RCG [dB]
+3.000000               ! Maximum RCG Difference [dB]
+4                     ! Longitudinal Grid Divisor
+/Users/sehokim/Desktop/Research/Github/SOCRATES/large_files/ ! Large File Storage Root Directory
+=========================== Data to Report =============================
+FALSE                     ! Individual Receiver Data (per Inp_Report.txt)
+==================== Coverage Analysis Parameter =======================
+7                         ! Number of SoOp (Tx Combinations)
+------------------------- SoOp 1 ---------------------------------------
+ORBCOMM                   ! SoOp Name
+1                         ! Number of Tx Systems
+ORBCOMM                   ! Tx 1 Name (From Inp_Inorbit.txt)
+4.700000      R                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
+USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
+30.000000 25.000000 25.000000 1.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+MMA_137_R_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
+MMA_137_L_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
+------------------------- SoOp 2 ---------------------------------------
+UFO                   ! SoOp Name
+1                         ! Number of Tx Systems
+MUOS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+5.200000      R                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
+USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
+30.000000 25.000000 25.000000 1.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+MMA_250_R_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
+MMA_250_L_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
+------------------------- SoOp 3 ---------------------------------------
+MUOS                   ! SoOp Name
+1                         ! Number of Tx Systems
+MUOS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+6.100000      R                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
+USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
+30.000000 25.000000 25.000000 1.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+MMA_380_R_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
+MMA_380_L_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
+------------------------- SoOp 4 ---------------------------------------
+GPS                   ! SoOp Name
+1                         ! Number of Tx Systems
+GPS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+14.700000      R                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
+USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
+30.000000 25.000000 25.000000 1.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
+CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
+------------------------- SoOp 5 ---------------------------------------
+Galileo                   ! SoOp Name
+1                         ! Number of Tx Systems
+Galileo                   ! Tx 1 Name (From Inp_Inorbit.txt)
+14.700000      L                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
+USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
+0.000000 0.000000 0.000000 0.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
+CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
+------------------------- SoOp 6 ---------------------------------------
+GLONASS                   ! SoOp Name
+1                         ! Number of Tx Systems
+GLONASS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+14.700000      R                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
+USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
+0.000000 0.000000 0.000000 0.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
+CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
+------------------------- SoOp 7 ---------------------------------------
+Beidou                   ! SoOp Name
+1                         ! Number of Tx Systems
+Beidou                   ! Tx 1 Name (From Inp_Inorbit.txt)
+14.700000      L                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
+USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
+0.000000 0.000000 0.000000 0.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
+CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
+CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
+

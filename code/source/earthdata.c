@@ -504,3 +504,83 @@ void LL2EzRC(struct GridType *G, double lat, double lon, uint16_t *row, uint16_t
 	*col = round((x-G->x0)/G->pixelSize);
 	*row = round((G->y0-y)/G->pixelSize);
 }
+
+int read_cdf_table(const char *filename, tableCDF *table)
+{
+	FILE *fp = FileOpen(DynDataPath, filename, "r" );
+	size_t capacity = 1001;
+
+    table->F    = malloc(capacity * sizeof(double));
+    table->X137 = malloc(capacity * sizeof(double));
+    table->X255 = malloc(capacity * sizeof(double));
+    table->X370 = malloc(capacity * sizeof(double));
+    table->n = 0;
+
+    if (!table->F || !table->X137 || !table->X255 || !table->X370) {
+        perror("Memory allocation failed");
+        fclose(fp);
+        return -1;
+    }
+
+    double f, x137, x255, x370;
+    while (fscanf(fp, "%lf, %lf, %lf, %lf", &f, &x137, &x255, &x370) == 4) {
+        if (table->n >= capacity) {
+            capacity *= 2;
+            table->F    = realloc(table->F,    capacity * sizeof(double));
+            table->X137 = realloc(table->X137, capacity * sizeof(double));
+            table->X255 = realloc(table->X255, capacity * sizeof(double));
+            table->X370 = realloc(table->X370, capacity * sizeof(double));
+
+            if (!table->F || !table->X137 || !table->X255 || !table->X370) {
+                perror("Memory reallocation failed");
+                fclose(fp);
+                return -1;
+            }
+        }
+
+		table->F[table->n]    = f;
+        table->X137[table->n] = x137;
+        table->X255[table->n] = x255;
+        table->X370[table->n] = x370;
+        table->n++;
+    }
+
+    fclose(fp);
+
+    if (table->n == 0) {
+        fprintf(stderr, "No valid rows read from file\n");
+        return -1;
+    }
+	
+    return 0;
+}
+
+const double *get_x_column(const tableCDF *table, int iSoOp) {
+    switch (iSoOp) {
+        case 0: return table->X137;
+        case 1: return table->X255;
+        case 2: return table->X370;
+        default:  return NULL;
+    }
+}
+
+double lookup_F_from_x(const double *X, const double *F, size_t n, double x) {
+    if (n == 0) return 0.0;
+
+    if (x <= X[0]) return F[0];
+    if (x >= X[n - 1]) return F[n - 1];
+
+    size_t left = 0, right = n - 1;
+    while (right - left > 1) {
+        size_t mid = left + (right - left) / 2;
+        if (X[mid] <= x)
+            left = mid;
+        else
+            right = mid;
+    }
+
+    double x0 = X[left], x1 = X[right];
+    double f0 = F[left], f1 = F[right];
+
+    return f0 + (x - x0) * (f1 - f0) / (x1 - x0);
+}
