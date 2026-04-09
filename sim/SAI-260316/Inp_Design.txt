@@ -7,8 +7,8 @@ WALKER                    ! Constellation Type (WALKER, HYBRID)
 3                         ! Number of Altitude Variable
 500, 600, 700        ! Altitude [km]
 ------------------------------------------------------------------------
-6                         ! Number of Inclination Variable
-50, 60, 70, 80, 90, SSO        ! Inclination [deg]
+7                         ! Number of Inclination Variable
+40, 50, 60, 70, 80, 90, SSO        ! Inclination [deg]
 ------------------------------------------------------------------------
 3                         ! Number of # Orbital Plane Variable
 1, 2, 3        ! # Orbital Plane
@@ -34,11 +34,11 @@ FALSE                     ! Real-time Transmitter Propagation
 0.000000               ! Minimum Direct RCG [dB]
 3.000000               ! Maximum RCG Difference [dB]
 4                     ! Longitudinal Grid Divisor
-/Users/sehokim/Desktop/Research/Github/SOCRATES/large_files/ ! Large File Storage Root Directory
+/Users/sehokim/Remote/cadia/ASR1115/ ! Large File Storage Root Directory
 =========================== Data to Report =============================
 FALSE                     ! Individual Receiver Data (per Inp_Report.txt)
 ==================== Coverage Analysis Parameter =======================
-7                         ! Number of SoOp (Tx Combinations)
+6                         ! Number of SoOp (Tx Combinations)
 ------------------------- SoOp 1 ---------------------------------------
 ORBCOMM                   ! SoOp Name
 1                         ! Number of Tx Systems
@@ -76,28 +76,23 @@ USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
 CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
 CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
 ------------------------- SoOp 5 ---------------------------------------
-Galileo                   ! SoOp Name
-1                         ! Number of Tx Systems
-Galileo                   ! Tx 1 Name (From Inp_Inorbit.txt)
-14.700000      L                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
-USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
-0.000000 0.000000 0.000000 0.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
-CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
-CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
-------------------------- SoOp 6 ---------------------------------------
-GLONASS                   ! SoOp Name
-1                         ! Number of Tx Systems
-GLONASS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+GE                   ! SoOp Name
+2                         ! Number of Tx Systems
+GPS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+Galileo                   ! Tx 2 Name (From Inp_Inorbit.txt)
 14.700000      R                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
 USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
 0.000000 0.000000 0.000000 0.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
 CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
 CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat X-pol File
-------------------------- SoOp 7 ---------------------------------------
-Beidou                   ! SoOp Name
-1                         ! Number of Tx Systems
-Beidou                   ! Tx 1 Name (From Inp_Inorbit.txt)
-14.700000      L                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
+------------------------- SoOp 6 ---------------------------------------
+GENB                   ! SoOp Name
+4                         ! Number of Tx Systems
+GPS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+Galileo                   ! Tx 2 Name (From Inp_Inorbit.txt)
+GLONASS                   ! Tx 3 Name (From Inp_Inorbit.txt)
+Beidou                   ! Tx 4 Name (From Inp_Inorbit.txt)
+14.700000      R                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
 USER_DEFINED                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
 0.000000 0.000000 0.000000 0.000000  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
 CYGNSS_LHCP_norm_vol_num.csv ! (USER_DEFINED) Rx Ant Pat Co-pol File
