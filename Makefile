@@ -46,6 +46,7 @@ SRC42 = $(ORB42DIR)Source/
 KIT42DIR = $(ORB42DIR)Kit/
 KIT42INC = $(KIT42DIR)Include/
 KIT42SRC = $(KIT42DIR)Source/
+SGP4DIR = ./orbit/sgp4/
 
 ifeq ($(PLATFORM),__APPLE__)
 	# Mac Macros
@@ -97,13 +98,16 @@ KIT42OBJ = $(OBJ42)dcmkit.o $(OBJ42)envkit.o $(OBJ42)fswkit.o $(OBJ42)geomkit.o 
 $(OBJ42)iokit.o $(OBJ42)mathkit.o $(OBJ42)nrlmsise00kit.o $(OBJ42)msis86kit.o \
 $(OBJ42)orbkit.o $(OBJ42)radbeltkit.o $(OBJ42)sigkit.o $(OBJ42)sphkit.o $(OBJ42)timekit.o
 
+# Vendored public-domain Vallado SGP4 (see orbit/sgp4/PROVENANCE.md)
+SGP4OBJ = $(SGP4DIR)SGP4.o $(SGP4DIR)TLE.o
+
 CFLAGS = -Wall -Wshadow -Wno-deprecated -g $(GLINC) $(CINC) -I $(INC) -I $(SRC) -I $(INC42) -I $(KIT42INC) -I $(KIT42SRC) -O0 $(ARCHFLAG) $(TIMEFLAG)
 #-fno-stack-protector 
 
 ##########################  Rules to link SoOp  #############################
 
-SOCRATES : $(SOOPOBJ) $(BUSOBJ) $(DEVOBJ) $(RETOBJ) $(42OBJ) $(KIT42OBJ)
-	   $(CC) $(LFLAGS) -o $(EXENAME) $(SOOPOBJ) $(DEVOBJ) $(RETOBJ) $(BUSOBJ) $(42OBJ) $(KIT42OBJ) $(LIBS)
+SOCRATES : $(SOOPOBJ) $(BUSOBJ) $(DEVOBJ) $(RETOBJ) $(42OBJ) $(KIT42OBJ) $(SGP4OBJ)
+	   $(CC) $(LFLAGS) -o $(EXENAME) $(SOOPOBJ) $(DEVOBJ) $(RETOBJ) $(BUSOBJ) $(42OBJ) $(KIT42OBJ) $(SGP4OBJ) $(LIBS)
 
 ####################  Rules to compile objects  ###########################
 
@@ -242,6 +246,14 @@ $(OBJ42)sphkit.o      : $(KIT42SRC)sphkit.c
 $(OBJ42)timekit.o     : $(KIT42SRC)timekit.c 
 	$(CC) $(CFLAGS) -c $(KIT42SRC)timekit.c -o $(OBJ42)timekit.o  
  
+###################  Rules to compile vendored SGP4  ######################
+
+$(SGP4DIR)SGP4.o          : $(SGP4DIR)SGP4.c $(SGP4DIR)SGP4.h
+	$(CC) $(CFLAGS) -I $(SGP4DIR) -c $(SGP4DIR)SGP4.c -o $(SGP4DIR)SGP4.o
+
+$(SGP4DIR)TLE.o           : $(SGP4DIR)TLE.c $(SGP4DIR)TLE.h $(SGP4DIR)SGP4.h
+	$(CC) $(CFLAGS) -I $(SGP4DIR) -c $(SGP4DIR)TLE.c -o $(SGP4DIR)TLE.o
+
 ########################  Miscellaneous Rules  ############################
 clean :
 ifeq ($(PLATFORM),_WIN32)
@@ -249,7 +261,7 @@ ifeq ($(PLATFORM),_WIN32)
 else ifeq ($(PLATFORM),_WIN64)
 	del .\$(OBJ)\*.o .\$(OBJ42)\*.o .\$(EXENAME)
 else
-	rm -f $(OBJ)*.o $(OBJ42)*.o
+	rm -f $(OBJ)*.o $(OBJ42)*.o $(SGP4DIR)*.o
 endif
 
 
