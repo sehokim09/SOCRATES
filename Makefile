@@ -81,7 +81,7 @@ ifeq ($(PLATFORM),__MSYS__)
 	CC = mpicc
 endif
 
-SOOPOBJ = $(OBJ)socrates.o $(OBJ)init.o $(OBJ)obs.o $(OBJ)geometry.o $(OBJ)ground.o $(OBJ)product.o $(OBJ)antenna.o $(OBJ)attitude.o $(OBJ)earthdata.o $(OBJ)interface.o $(OBJ)util.o
+SOOPOBJ = $(OBJ)socrates.o $(OBJ)init.o $(OBJ)obs.o $(OBJ)geometry.o $(OBJ)ground.o $(OBJ)product.o $(OBJ)antenna.o $(OBJ)attitude.o $(OBJ)earthdata.o $(OBJ)interface.o $(OBJ)util.o $(OBJ)propagator.o
 
 BUSOBJ = $(OBJ)comm.o
 
@@ -246,6 +246,9 @@ $(OBJ42)sphkit.o      : $(KIT42SRC)sphkit.c
 $(OBJ42)timekit.o     : $(KIT42SRC)timekit.c 
 	$(CC) $(CFLAGS) -c $(KIT42SRC)timekit.c -o $(OBJ42)timekit.o  
  
+$(OBJ)propagator.o       : $(SRC)propagator.c $(INC)propagator.h $(INC42)42.h
+	$(CC) $(CFLAGS) -c $(SRC)propagator.c -o $(OBJ)propagator.o
+
 ###################  Rules to compile vendored SGP4  ######################
 
 $(SGP4DIR)SGP4.o          : $(SGP4DIR)SGP4.c $(SGP4DIR)SGP4.h
