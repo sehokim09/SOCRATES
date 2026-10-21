@@ -116,7 +116,7 @@ function calcScore(projName, DesignParamsObj, fom)
             MTC = fom.MTC2Tglobal;
     end
     for iFreqComb = 1 : DesignParamsObj.nFreqComb
-        score.MTC(:,iFreqComb) = penaltyWymoreSSF3(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MTC(:,iFreqComb));
+        score.MTC(:,iFreqComb) = penaltyWymoreSSF9(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MTC(:,iFreqComb));
         score.MTCWeightedSum = score.MTCWeightedSum + DesignParamsObj.perform.MTC.score(iFreqComb).weight*score.MTC(:,iFreqComb);
     end
 

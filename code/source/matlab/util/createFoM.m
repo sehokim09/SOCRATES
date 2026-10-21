@@ -151,6 +151,11 @@ function createFoM(projName, DesignParamsObj)
         revisitTime95th = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
         revisitTime98th = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
         revisitTimeMean = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
+        
+        MRT1Tglobal = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
+        MRT2Tglobal = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
+        Nmulti1T = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
+        Nmulti2T = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
 
         nSpValid = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
         nSpInvalid = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
@@ -168,6 +173,7 @@ function createFoM(projName, DesignParamsObj)
             'coverageMap1T', 'coverageMap2T', ...
             'coverage1Tzonal', 'coverage1Tglobal', 'coverage2Tzonal', 'coverage2Tglobal', ...
             'revisitTime50th', 'revisitTime90th', 'revisitTime95th', 'revisitTime98th', 'revisitTimeMean', ...
+            'MRT1Tglobal', 'MRT2Tglobal', 'Nmulti1T', 'Nmulti2T', ...
             'nSpValid', 'nSpInvalid', 'nSpRatio', ...
             'caseDone', 'loopComplete', 'postProcessComplete', ...
             '-v7.3');
@@ -322,8 +328,8 @@ function createFoM(projName, DesignParamsObj)
                                 end
                             
                             end
-                            % tmpMRT1Tglobal = tmpMRT1Tglobal / 24;
-                            % tmpMRT2Tglobal = tmpMRT2Tglobal / 24;
+                            tmpMRT1Tglobal = tmpMRT1Tglobal / 24;
+                            tmpMRT2Tglobal = tmpMRT2Tglobal / 24;
 
                             %% 1T coverage
                             obs1Tcumul = zeros(nCol, nRow, nFreqComb);
@@ -595,8 +601,10 @@ function createFoM(projName, DesignParamsObj)
     MSC2T1st = reshape(squeeze(S.coverage2T1st(:,:,:,:,end,:)), [], nFreqComb);
     MSC2T2nd = reshape(squeeze(S.coverage2T2nd(:,:,:,:,end,:)), [], nFreqComb);
 
-    MTC1Tglobal = reshape(S.coverage1Tglobal, [], nFreqComb);
-    MTC2Tglobal = reshape(S.coverage2Tglobal, [], nFreqComb);
+    MTC1Tglobal = reshape(S.MRT1Tglobal, [], nFreqComb);
+    MTC2Tglobal = reshape(S.MRT2Tglobal, [], nFreqComb);
+    % MTC1Tglobal = reshape(S.coverage1Tglobal, [], nFreqComb);
+    % MTC2Tglobal = reshape(S.coverage2Tglobal, [], nFreqComb);
 
     revisitTime50th = reshape(S.revisitTime50th, nCase, nTxComb);
     revisitTime90th = reshape(S.revisitTime90th, nCase, nTxComb);
