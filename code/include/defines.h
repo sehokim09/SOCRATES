@@ -201,7 +201,7 @@
 #define HYBRID 1
 #define DEDICATED 1
 #define RIDESHARE 2
-#define MAX_NSP 1300
+#define MAX_NSP 7000
 #define N_SOOPCOMBI 8
 #define NO_OBS 0b0000
 #define I_BAND 0b0001

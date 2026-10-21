@@ -787,8 +787,8 @@ void loadDesign(void)
 		// (USER_DEFINED) File Name for Antenna Pattern
 		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[0],junk,&newline);
 		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[1],junk,&newline);
-        strcpy(Design->SoOp[iSoOp].antFileName[2], Design->SoOp[iSoOp].antFileName[1]);
-        strcpy(Design->SoOp[iSoOp].antFileName[3], Design->SoOp[iSoOp].antFileName[0]);
+		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[2],junk,&newline);
+		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[3],junk,&newline);
     }
 	fclose(infile);
 }
@@ -1333,11 +1333,46 @@ void initConsPerform(void)
     Design->revisitThreshold = 3600;
 }
 
+/* Electron maximum payload mass (kg) to a circular orbit, interpolated from the
+   performance curves of the Electron Payload User's Guide v8.0 (Sep 2025), p. 35.
+   Curves digitized at 400-1200 km for 40, 60, 80 deg and SSO (about +/-1 kg).
+   Linear in altitude between tabulated points (extrapolated outside 400-1200 km),
+   linear in inclination between curves, the SSO curve at its own inclination. */
+static double electronCapacity(double alt_km, double inc_deg)
+{
+    static const double h[7]    = {400, 500, 600, 700, 800, 1000, 1200};
+    static const double m40[7]  = {270.1, 263.7, 257.5, 251.5, 243.4, 228.3, 213.9};
+    static const double m60[7]  = {249.1, 243.0, 237.4, 231.3, 224.3, 211.2, 197.1};
+    static const double m80[7]  = {224.1, 218.6, 213.4, 207.8, 201.5, 188.1, 175.0};
+    static const double mSSO[7] = {203.3, 198.1, 192.6, 186.7, 180.1, 167.6, 155.2};
+    static const double iSSO[7] = { 97.0,  97.4,  97.8,  98.2,  98.6,  99.5, 100.4};
+    int k = 0;
+    double t, c40, c60, c80, cS, iS;
+
+    if (alt_km <= h[0])      k = 0;
+    else if (alt_km >= h[6]) k = 5;
+    else while (k < 5 && alt_km > h[k+1]) k++;
+    t = (alt_km - h[k]) / (h[k+1] - h[k]);
+
+    c40 = m40[k]  + t*(m40[k+1]  - m40[k]);
+    c60 = m60[k]  + t*(m60[k+1]  - m60[k]);
+    c80 = m80[k]  + t*(m80[k+1]  - m80[k]);
+    cS  = mSSO[k] + t*(mSSO[k+1] - mSSO[k]);
+    iS  = iSSO[k] + t*(iSSO[k+1] - iSSO[k]);
+
+    if (inc_deg <= 60.0) return c40 + (inc_deg - 40.0)/20.0*(c60 - c40);   /* extrapolates below 40 */
+    if (inc_deg <= 80.0) return c60 + (inc_deg - 60.0)/20.0*(c80 - c60);
+    if (inc_deg <= iS)   return c80 + (inc_deg - 80.0)/(iS - 80.0)*(cS - c80);
+    return cS;
+}
+
 void calcLaunchCost(long nRx, double alt, double inc, long nPlane, double *costDedicated, double *costRideshare, int *launchOption, int *nLaunch)
 {
     double massSat = 25; // satellite unit mass (kg)
-    double massPayloadMax = 345.6 - 0.067*alt - 1.175*inc;
-    double c_rocket = 7.43E6; // cost of building a rocket
+    double massPayloadMax = electronCapacity(alt, inc);   // Electron UG v8.0 curves
+    double c_rocket = 8.33E6; // rocket build cost: Electron ASP $8.4M (Q3 2024) minus propellant cost at max payload, 400 km, 40 deg
+//    double massPayloadMax = 345.6 - 0.067*alt - 1.175*inc;
+//    double c_rocket = 7.43E6; // cost of building a rocket
 
     double aL = World[EARTH].rad + 400.0E3;
     double aH = World[EARTH].rad + alt*1.0E3;
@@ -1362,7 +1397,7 @@ void calcLaunchCost(long nRx, double alt, double inc, long nPlane, double *costD
     
     // Translate amount of propellant into dollars
     double c_propellant = 1; // specific cost of propellant (dollar/kg)
-    double c_dedicated = c_rocket + c_propellant * m_propD; // 4.26M$ corresponds to the cost of building the rocket
+    double c_dedicated = c_rocket + c_propellant * m_propD; // 4.26M$ (this is old version) corresponds to the cost of building the rocket
     double c_rideshare = c_propellant * m_propR;
 
     if(m_pload_per_launch < alpha * massPayloadMax){
@@ -1596,10 +1631,10 @@ int checkPerformNc(void)
     int flagSuccess[1], flagSkip = TRUE;
 
     if(Design->consType == WALKER){
-        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_newRCG.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
+        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_SAI.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
     }
     else if(Design->consType == HYBRID){
-        sprintf(fullpath, "%s%s_perform_newRCG.nc", Design->largeFilePath, Design->consName);
+        sprintf(fullpath, "%s%s_perform_SAI.nc", Design->largeFilePath, Design->consName);
     }
     retval = nc_open(fullpath, NC_NOWRITE, &Design->ncPerformID);
     if(retval == NC_NOERR){
@@ -1867,11 +1902,11 @@ void createPerformNc(void)
     // Output directory
     if(Design->consType == WALKER){
         sprintf(Design->largeFilePath, "%s%ld_%d_%s_%ld/", Design->largeFileRoot, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
-        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_newRCG.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
+        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_SAI.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
     }
     else if(Design->consType == HYBRID){
         sprintf(Design->largeFilePath, "%s%s/", Design->largeFileRoot, Design->consName);
-        sprintf(fullpath,"%s%s_perform_newRCG.nc", Design->largeFilePath, Design->consName);
+        sprintf(fullpath,"%s%s_perform_SAI.nc", Design->largeFilePath, Design->consName);
     }
     
     // .. Create the file .. //
@@ -2213,7 +2248,7 @@ int initSAImodel(modelSAI *SAI, const char *TxName, tableCDF *cdf_table)
     double S0[3] = {1.247913816202226e+15, 7.289963274631603e+15, 6.892428308691730e+14};
     double alpha_threshold[3] = {3.737435820648506e+15, 5.492451164628094e+16, 2.498832837131167e+17};
     int iSoOp;
-
+    
     if(!strcmp(TxName, "ORBCOMM")){
         iSoOp = 0;
     }
@@ -2737,7 +2772,7 @@ void update_design(int taskID)
         // Walker Delta Constellation
         nRxPerPlane = Design->nRx / Design->nPlane; // T/P
         phasing = Design->nPlane - 1 - nRxPerPlane; // F = P - 1 - T/P
-        while(!(phasing>0)) // If F<0, add P repeatly until F>=0, F<P, F=integer
+        while(!(phasing>0)) // If F<0, add P repeatedly until F>=0, F<P, F=integer
             phasing += Design->nPlane;
         if(phasing >= Design->nPlane)
             phasing -= Design->nPlane;
