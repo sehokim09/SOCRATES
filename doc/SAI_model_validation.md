@@ -12,7 +12,7 @@ Plan: `ASR_SAI_Design/docs/SOCRATES_SAI_update.md`, Section 7.
 | 1. Unit checks (`sai_check --selftest`) | all pass |
 | 2. Per-point agreement with MATLAB, pooled 7-file sample | **0 mismatches** in 149,736,297 points x 3 ports; P identical, beta/alpha to 3.3e-14 |
 | 3. Pass fractions against `evaluation_summary.m` | all 14 marginal values reproduced to 4 decimals; joint H&V within 0.0007 of min(vX, vY) |
-| 4. Constellation run | 1-receiver 50 deg run: within 0.004 of `payload.passByOrbit`; `createFoM.m` runs on the new file. 6/500/50/1 on the server: see 4c |
+| 4. Constellation run | 6/500/50/1 on the server: H&V ratio within 0.0071 of `payload.passByOrbit` (limit 0.02); 1-receiver run within 0.004; `createFoM.m` runs on the new file |
 
 ## Model and inputs
 
@@ -123,9 +123,27 @@ this predates the change).
 
 ### 4c. 6/500/50/1 (server)
 
-`bash sim/SAI-2610/smoke_test.sh 6 500 50 1` on the machine holding the specular-point
-files. Results to be added after the run. Acceptance: H&V ratio within 0.02 of
-`passByOrbit(:,2,1)` = 0.9312, 0.8917, 0.9336, 0.4326 (ORBCOMM, UFO, MUOS, GPS).
+`bash sim/SAI-2610/smoke_test.sh 6 500 50 1` on the Purdue server (Linux, one MPI
+task, 767 s), storage root `/local/scratch/a/kim3002/ASR1115/`. The self-test passed
+there as well (rho1 rho2 worst error 3.1e-9, 0.24 of the limit; other checks as in
+Section 1). Output: `6_500_50_1/6_500_50_1_perform_SAI2610.nc`, `saiSource` =
+"solved_payload.m 2026-10-21 14:07", `saiRunTag` = "SAI2610".
+
+| SoOp | valid | invalid | H&V ratio | `passByOrbit(:,2,1)` | difference | pass X | pass Y | LHCP |
+|---|---|---|---|---|---|---|---|---|
+| ORBCOMM | 1,398,480 | 91,914 | 0.9383 | 0.9312 | +0.0071 | 0.9383 | 0.9988 | 0.9712 |
+| UFO | 3,940,641 | 474,046 | 0.8926 | 0.8917 | +0.0009 | 0.8926 | 1.0000 | 1.0000 |
+| MUOS | 3,280,972 | 238,608 | 0.9322 | 0.9336 | -0.0014 | 0.9322 | 1.0000 | 1.0000 |
+| GPS | 9,864,062 | 12,754,408 | 0.4361 | 0.4326 | +0.0035 | 0.4361 | 1.0000 | 1.0000 |
+| GE | 23,987,869 | 19,475,860 | 0.5519 | - | | 0.5519 | 1.0000 | 1.0000 |
+| GENB | 37,161,362 | 66,917,818 | 0.3570 | - | | 0.3570 | 0.9809 | 0.8544 |
+
+All four bands are within the 0.02 acceptance limit (largest difference +0.0071,
+ORBCOMM). No point has kappa > -1 and none falls outside the grid. As in 4a the
+reference is the optimizer's worse-port marginal on one receiver, here compared with
+the joint H&V ratio of six receivers; the X port governs every band. The production
+run skips this constellation, since its performance file now exists under the same
+name.
 
 ## Reproducing
 
