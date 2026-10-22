@@ -87,7 +87,7 @@ BUSOBJ = $(OBJ)comm.o
 
 RETOBJ = $(OBJ)retrieval.o
 
-DEVOBJ = $(OBJ)design.o
+DEVOBJ = $(OBJ)design.o $(OBJ)sai.o
 	
 42OBJ = $(OBJ42)42main.o $(OBJ42)42exec.o $(OBJ42)42actuators.o $(OBJ42)42cmd.o \
 $(OBJ42)42dynamics.o $(OBJ42)42environs.o $(OBJ42)42ephem.o $(OBJ42)42fsw.o \
@@ -152,6 +152,9 @@ $(OBJ)comm.o             : $(SRC)comm.c $(INC)socrates.h $(INC42)42.h
 
 $(OBJ)design.o           : $(SRC)design.c $(INC)socrates.h $(INC42)42.h
 	$(CC) $(CFLAGS) -c $(SRC)design.c -o $(OBJ)design.o
+
+$(OBJ)sai.o              : $(SRC)sai.c $(INC)sai.h
+	$(CC) $(CFLAGS) -Wextra -c $(SRC)sai.c -o $(OBJ)sai.o
 
 $(OBJ42)42main.o          : $(SRC42)42main.c 
 	$(CC) $(CFLAGS) -c $(SRC42)42main.c -o $(OBJ42)42main.o  
