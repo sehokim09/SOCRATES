@@ -1,8 +1,11 @@
-function createFoM(projName, DesignParamsObj)
+function createFoM(projName, DesignParamsObj, performTag)
 % function createFoM
 %
 %   Read performance and cost NetCDF files and save FoM_[projName].mat
 %   with restart/checkpoint support for long runs.
+%
+%   performTag (optional, default "SAI") selects <constellation>_perform_<tag>.nc,
+%   the run tag of the project's Inp_SAI.txt (e.g. "SAI2610").
 %
 %   Raw case-by-case results are written directly to the MAT file.
 %   Post-processing is performed only after all cases are completed.
@@ -27,6 +30,10 @@ function createFoM(projName, DesignParamsObj)
 %   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 %
 %   Version 1.0
+
+    if nargin < 3 || isempty(performTag)
+        performTag = "SAI";
+    end
 
     %% Directories
     dir_out = fullfile('sim', projName, 'out');
@@ -73,7 +80,7 @@ function createFoM(projName, DesignParamsObj)
                             dir_spdata(iNrx, iAlt, iInc, iNplane) = ...
                                 fullfile(dir_largefiles, consName(iNrx, iAlt, iInc, iNplane));
                             filename_perform(iNrx, iAlt, iInc, iNplane) = ...
-                                strcat(consName(iNrx, iAlt, iInc, iNplane), "_perform_SAI.nc");
+                                strcat(consName(iNrx, iAlt, iInc, iNplane), "_perform_", performTag, ".nc");
                             filename_cost(iNrx, iAlt, iInc, iNplane) = ...
                                 strcat(consName(iNrx, iAlt, iInc, iNplane), "_cost.nc");
                         end
@@ -99,7 +106,7 @@ function createFoM(projName, DesignParamsObj)
 
             consName(1,1,1,1) = string(DesignParamsObj.hybrid.name);
             dir_spdata(1,1,1,1) = fullfile(dir_largefiles, consName(1,1,1,1));
-            filename_perform(1,1,1,1) = strcat(consName(1,1,1,1), "_perform.nc");
+            filename_perform(1,1,1,1) = strcat(consName(1,1,1,1), "_perform_", performTag, ".nc");
             filename_cost(1,1,1,1) = strcat(consName(1,1,1,1), "_cost.nc");
 
         otherwise

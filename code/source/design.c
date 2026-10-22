@@ -1307,6 +1307,16 @@ void initConsPerform(void)
         printf("Design->obsFreq calloc returned null pointer.  Bailing out!\n");
         exit(1);
     }
+    Design->obsFreqL = (int *) calloc((size_t) Design->nWindow*Grid[0].nRow*Design->nCol, sizeof(int));
+    if (Design->obsFreqL == NULL) {
+        printf("Design->obsFreqL calloc returned null pointer.  Bailing out!\n");
+        exit(1);
+    }
+    Design->ncSaiCntID = (int *) calloc(Design->nSoOp*SAI_NCNT, sizeof(int));
+    if (Design->ncSaiCntID == NULL) {
+        printf("Design->ncSaiCntID calloc returned null pointer.  Bailing out!\n");
+        exit(1);
+    }
     Design->nSpValid = (int *) calloc(Design->nSoOp, sizeof(int));
     if (Design->nSpValid == NULL) {
         printf("Design->nSpValid calloc returned null pointer.  Bailing out!\n");
@@ -1665,10 +1675,10 @@ int checkPerformNc(void)
     int flagSuccess[1], flagSkip = TRUE;
 
     if(Design->consType == WALKER){
-        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_SAI.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
+        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_%s.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane, Design->sai.runTag);
     }
     else if(Design->consType == HYBRID){
-        sprintf(fullpath, "%s%s_perform_SAI.nc", Design->largeFilePath, Design->consName);
+        sprintf(fullpath, "%s%s_perform_%s.nc", Design->largeFilePath, Design->consName, Design->sai.runTag);
     }
     retval = nc_open(fullpath, NC_NOWRITE, &Design->ncPerformID);
     if(retval == NC_NOERR){
@@ -1916,10 +1926,13 @@ void createSpDataNc(void)
     }
 }
 
+// Names of the SAI counters in the performance file, in the order of ncSaiCntID
+static const char *saiCntName[SAI_NCNT] = {"nSpPassX", "nSpPassY", "nSpPassLcp", "nSpKappa", "nSpOffGrid"};
+
 void createPerformNc(void)
 {
     // IDs for the netCDF file, dimensions, and variables.
-    int dimID, dim1ID, dim2ID, dim3ID, dimIDs[3];
+    int dimID, dim1ID, dim2ID, dim3ID, dimIDs[3], dimSaiID, k;
     // Error handling
     int retval;
     // Fill values
@@ -1936,11 +1949,11 @@ void createPerformNc(void)
     // Output directory
     if(Design->consType == WALKER){
         sprintf(Design->largeFilePath, "%s%ld_%d_%s_%ld/", Design->largeFileRoot, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
-        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_SAI.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
+        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_%s.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane, Design->sai.runTag);
     }
     else if(Design->consType == HYBRID){
         sprintf(Design->largeFilePath, "%s%s/", Design->largeFileRoot, Design->consName);
-        sprintf(fullpath,"%s%s_perform_SAI.nc", Design->largeFilePath, Design->consName);
+        sprintf(fullpath,"%s%s_perform_%s.nc", Design->largeFilePath, Design->consName, Design->sai.runTag);
     }
     
     // .. Create the file .. //
@@ -1961,6 +1974,13 @@ void createPerformNc(void)
     nCell = (int) Design->nCell.land;
     
     if ((retval = nc_put_att_int(Design->ncPerformID, NC_GLOBAL, "nCell", NC_INT, 1, &nCell)))
+        ERR(retval);
+    // SAI observation model the file was produced with
+    if ((retval = nc_put_att_text(Design->ncPerformID, NC_GLOBAL, "saiSource", strlen(Design->sai.source), Design->sai.source)))
+        ERR(retval);
+    if ((retval = nc_put_att_text(Design->ncPerformID, NC_GLOBAL, "saiRunTag", strlen(Design->sai.runTag), Design->sai.runTag)))
+        ERR(retval);
+    if ((retval = nc_def_dim(Design->ncPerformID, "nSaiCount", 1, &dimSaiID)))
         ERR(retval);
 
     // .. Variables for coverage metrics .. //
@@ -2028,6 +2048,14 @@ void createPerformNc(void)
             ERR(retval);
         if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncNspInvalidID[iSoOp], NC_FILL, &fillvalue_int)))
             ERR(retval);
+        // SAI model counters: per-port passes, kappa > -1, points outside the grid
+        for(k=0; k<SAI_NCNT; k++){
+            sprintf(varName, "%s_%s", saiCntName[k], Design->SoOp[iSoOp].name);
+            if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimSaiID, &Design->ncSaiCntID[iSoOp*SAI_NCNT + k])))
+                ERR(retval);
+            if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncSaiCntID[iSoOp*SAI_NCNT + k], NC_FILL, &fillvalue_int)))
+                ERR(retval);
+        }
     }
     // Frequency Combination
     if ((retval = nc_def_dim(Design->ncPerformID, "nWindow", Design->nWindow, &dim1ID)))
@@ -2044,7 +2072,12 @@ void createPerformNc(void)
     if ((retval = nc_def_var(Design->ncPerformID, "obsFreq", NC_INT, 3, dimIDs, &Design->ncObsFreqID)))
         ERR(retval);
     if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncObsFreqID, NC_FILL, &fillvalue_int)))
-        ERR(retval); 
+        ERR(retval);
+    // LHCP product (fallback), same layout as obsFreq; obsFreq is the H&V product
+    if ((retval = nc_def_var(Design->ncPerformID, "obsFreqL", NC_INT, 3, dimIDs, &Design->ncObsFreqLID)))
+        ERR(retval);
+    if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncObsFreqLID, NC_FILL, &fillvalue_int)))
+        ERR(retval);
 
     if ((retval = nc_def_dim(Design->ncPerformID, "nSuccess", 1, &dimID)))
         ERR(retval);
@@ -2203,13 +2236,18 @@ void writeAccessTimeNc(void)
 
 void writeNspNc(void)
 {
-    int retval, iSoOp;
+    int retval, iSoOp, k;
+    int *cnt[SAI_NCNT] = {Design->nSpPassX, Design->nSpPassY, Design->nSpPassLcp, Design->nSpKappa, Design->nSpOffGrid};
 
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
         if ((retval = nc_put_var_int(Design->ncPerformID, Design->ncNspValidID[iSoOp], &Design->nSpValid[iSoOp])))
             ERR(retval)
         if ((retval = nc_put_var_int(Design->ncPerformID, Design->ncNspInvalidID[iSoOp], &Design->nSpInvalid[iSoOp])))
             ERR(retval)
+        for(k=0; k<SAI_NCNT; k++){
+            if ((retval = nc_put_var_int(Design->ncPerformID, Design->ncSaiCntID[iSoOp*SAI_NCNT + k], &cnt[k][iSoOp])))
+                ERR(retval)
+        }
     }
 }
 
@@ -2244,6 +2282,8 @@ void writeObsFreqNc(int iteration)
         }
         start[0] = iWindow;
         if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncObsFreqID, start, count, &Design->obsFreq[0])))
+            ERR(retval);
+        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncObsFreqLID, start, count, &Design->obsFreqL[(size_t) iWindow*Grid[0].nRow*Design->nCol])))
             ERR(retval);
     }
 }
@@ -2285,6 +2325,7 @@ void readSpDataNc(int iteration)
     // SAI model
     const SaiTx *T;
     unsigned saiMask;
+    long iWindow;
 
     // Reset variables
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
@@ -2296,6 +2337,7 @@ void readSpDataNc(int iteration)
             }
         }
     }
+    memset(Design->obsFreqL, 0, sizeof(int)*Design->nWindow*Grid[0].nRow*Design->nCol);
 
     /* Create the file. */
     for(iRx=0; iRx<Design->nRx; iRx++){
@@ -2482,6 +2524,13 @@ void readSpDataNc(int iteration)
                             if(saiMask & SAI_PASS_Y) Design->nSpPassY[iSoOp]++;
                             if(saiMask & SAI_PASS_LCP) Design->nSpPassLcp[iSoOp]++;
                             if(saiMask & SAI_KAPPA_GT_M1) Design->nSpKappa[iSoOp]++;
+
+                            // LHCP product: SoOp bit in the observation window of the point
+                            if(saiMask & SAI_PASS_LCP){
+                                iWindow = Design->accessSec[iSp] / Design->timeWindow;
+                                if(iWindow >= 0 && iWindow < Design->nWindow)
+                                    Design->obsFreqL[(iWindow*Grid[0].nRow + iRow)*Design->nCol + iCol] |= 1<<(iSoOp);
+                            }
 
                             // Sort data into a grid: the usable observation is the H&V product
                             if((saiMask & SAI_PASS_HV) == SAI_PASS_HV){

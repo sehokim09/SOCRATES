@@ -182,10 +182,13 @@ struct DesignType{
 	int *ncNspValidID;
 	int *ncNspInvalidID;
 	int ncObsFreqID;
+	int ncObsFreqLID;
+	int *ncSaiCntID; // per SoOp, SAI_NCNT counters (nSpPassX, nSpPassY, nSpPassLcp, nSpKappa, nSpOffGrid)
 	size_t *startpRevisit;
 	size_t *startpAccessTime1st;
 	size_t *startpAccessTime2nd;
 	int *obsFreq;
+	int *obsFreqL; // LHCP product of the current slice, bit iSoOp per [iWindow][iRow][iCol]
 	int *nSpValid; // H&V product: ports X and Y both pass
 	int *nSpInvalid;
 	int *nSpPassX; // per-port passes and diagnostics of the SAI model
