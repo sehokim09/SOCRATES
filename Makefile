@@ -109,6 +109,10 @@ CFLAGS = -Wall -Wshadow -Wno-deprecated -g $(GLINC) $(CINC) -I $(INC) -I $(SRC) 
 SOCRATES : $(SOOPOBJ) $(BUSOBJ) $(DEVOBJ) $(RETOBJ) $(42OBJ) $(KIT42OBJ) $(SGP4OBJ)
 	   $(CC) $(LFLAGS) -o $(EXENAME) $(SOOPOBJ) $(DEVOBJ) $(RETOBJ) $(BUSOBJ) $(42OBJ) $(KIT42OBJ) $(SGP4OBJ) $(LIBS)
 
+# Standalone checker of the SAI observation model (doc/SAI_model_validation.md)
+sai_check : $(SRC)sai_check.c $(SRC)sai.c $(INC)sai.h
+	$(CC) $(CFLAGS) -Wextra $(LFLAGS) -o sai_check $(SRC)sai_check.c $(SRC)sai.c $(LIBS)
+
 ####################  Rules to compile objects  ###########################
 
 $(OBJ)socrates.o             : $(SRC)socrates.c $(INC)socrates.h $(INC42)42.h
@@ -267,7 +271,7 @@ ifeq ($(PLATFORM),_WIN32)
 else ifeq ($(PLATFORM),_WIN64)
 	del .\$(OBJ)\*.o .\$(OBJ42)\*.o .\$(EXENAME)
 else
-	rm -f $(OBJ)*.o $(OBJ42)*.o $(SGP4DIR)*.o
+	rm -f $(OBJ)*.o $(OBJ42)*.o $(SGP4DIR)*.o sai_check
 endif
 
 
