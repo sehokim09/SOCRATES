@@ -150,7 +150,7 @@ $(OBJ)retrieval.o        : $(SRC)retrieval.c $(INC)socrates.h $(INC42)42.h
 $(OBJ)comm.o             : $(SRC)comm.c $(INC)socrates.h $(INC42)42.h
 	$(CC) $(CFLAGS) -c $(SRC)comm.c -o $(OBJ)comm.o
 
-$(OBJ)design.o           : $(SRC)design.c $(INC)socrates.h $(INC42)42.h
+$(OBJ)design.o           : $(SRC)design.c $(INC)socrates.h $(INC)sai.h $(INC42)42.h
 	$(CC) $(CFLAGS) -c $(SRC)design.c -o $(OBJ)design.o
 
 $(OBJ)sai.o              : $(SRC)sai.c $(INC)sai.h

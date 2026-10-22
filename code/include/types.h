@@ -82,6 +82,7 @@ struct DesignSoOpType{
 	double hpbw; // Receive Antenna Half-Power Bandwidth [deg]
 	double SLL; // Side-lobe Level of Antenna Pattern [dB]
 	double XPL; // Cross-Polarization Level of Antenna Pattern [dB]
+	const SaiTx **saiTx; // SAI observation-model entry per Tx (Inp_SAI.txt)
 };
 
 struct DesignType{
@@ -110,7 +111,7 @@ struct DesignType{
 	uint8_t flagTxPropagation; // if TRUE, propagate Tx, otherwise import existing data
 	long timeWindow;
 	double revisitThreshold;
-	double minReflectRCG; // minimum reflected RCG (m^-4)
+	double minReflectRCG; // minimum reflected RCG (m^-4), parsed but no longer used
 	double minDirectRCG; // minimum direct RCG (dB)
 	double maxRCGdiff; // maximum RCG difference (dB) 
 	// Internal Variables
@@ -185,8 +186,14 @@ struct DesignType{
 	size_t *startpAccessTime1st;
 	size_t *startpAccessTime2nd;
 	int *obsFreq;
-	int *nSpValid;
+	int *nSpValid; // H&V product: ports X and Y both pass
 	int *nSpInvalid;
+	int *nSpPassX; // per-port passes and diagnostics of the SAI model
+	int *nSpPassY;
+	int *nSpPassLcp;
+	int *nSpKappa; // SAI points with kappa > -1
+	int *nSpOffGrid; // points outside the analysis grid
+	SaiModel sai; // SAI observation model (Inp_SAI.txt)
 	// Variables for analyzing cost
 	int ncCostID;
 	int ncCostVarID;	
@@ -1146,33 +1153,5 @@ struct GsType{
 	double *t_acc_start; // Starting time of access interval
 	double *t_acc_end; // Ending time of access interval
 };
-
-typedef struct {
-    double *F;
-    double *X137;
-    double *X255;
-    double *X370;
-    size_t n;
-} tableCDF;
-
-typedef struct{
-	double S0;
-	double alpha_threshold;
-	double eta_bar_single;
-	double N_coh;
-	const double *X;
-
-	double alpha;
-	double beta;
-	double SD;
-	double ND;
-	double C;
-	double Gamma_upper;
-	double Gamma_lower;
-
-	double F_upper;
-	double F_lower;
-	double gamma;
-} modelSAI;
 
 #endif

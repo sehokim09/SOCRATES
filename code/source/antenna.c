@@ -312,7 +312,7 @@ double*** LoadAntPattern(char antFileName[4][40], double *antPatRes, double ***a
     const char delimiter[2] = ",";
     char *token;
     int iTheta = 0, iPhi = 0, nTheta, nPhi, iPol, i;
-    char line[3600];
+    char line[65536]; // a 361 x 181 pattern at 1 deg is about 2 kB per row
 
 	for(iPol=0; iPol<4; iPol++){
 		infile = FileOpen(AntPath,antFileName[iPol],"r");
@@ -338,7 +338,7 @@ double*** LoadAntPattern(char antFileName[4][40], double *antPatRes, double ***a
 			nPhi = iPhi;
 
 			// Calculate the antenna pattern resolution in degrees
-            *antPatRes = 180 / (nTheta - 1);
+            *antPatRes = 180.0 / (nTheta - 1);
 			rewind(infile);
 
 			//* .. Memory allocation for the antenna pattern array .. *//
@@ -373,12 +373,18 @@ double*** LoadAntPattern(char antFileName[4][40], double *antPatRes, double ***a
 void LookupAntPattern(double ***antPat, double res, double th, double ph, double complex g[2][2])
 {
 	long iTheta, iPhi;
+	long nTheta = (long) round(180.0/res) + 1, nPhi = (long) round(360.0/res) + 1;
 	
 	// Convert (-180,180) to (0,360)
 	ph = fmod(ph+TwoPi, TwoPi);
 
 	iTheta = (long) round(th*R2D / res);
 	iPhi = (long) round(ph*R2D / res);
+	// Clamp to the table (theta 0-180 and phi 0-360 deg at res)
+	if(iTheta < 0) iTheta = 0;
+	if(iTheta > nTheta-1) iTheta = nTheta-1;
+	if(iPhi < 0) iPhi = 0;
+	if(iPhi > nPhi-1) iPhi = nPhi-1;
 
 	//printf("res=%lf, th=%lf, ph=%lf, th = %ld, ph = %ld\n", res, th*R2D, ph*R2D, iTheta, iPhi);
 	g[0][0] = antPat[0][iPhi][iTheta];

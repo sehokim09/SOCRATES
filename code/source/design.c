@@ -175,7 +175,7 @@ void reallocDesign(void)
 
 void freeDesign(void)
 {
-    int iRx;
+    int iRx, iSoOp;
 
     for(iRx=0; iRx<Design->nRx; iRx++){
         free(Design->ncCnt[iRx]);
@@ -201,6 +201,9 @@ void freeDesign(void)
     free(Design->ncRangeTRID);
     free(Design->ncRangeTSID);
     free(Design->ncRangeSRID);
+    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++)
+        free(Design->SoOp[iSoOp].saiTx);
+    saiFree(&Design->sai);
 }
 
 void freeRigidDyn(struct SCType *S)
@@ -729,7 +732,7 @@ void loadDesign(void)
   	// .. Observation Time Window .. //
     fscanf(infile,"%ld %[^\n] %[\n]",&Design->timeWindow,junk,&newline);
     Design->timeWindow *= 3600; // hour to sec
-  	// .. Minimum Reflected RCG .. //
+  	// .. Minimum Reflected RCG (kept for the file format; the SAI model of Inp_SAI.txt replaces it) .. //
     fscanf(infile,"%lf %[^\n] %[\n]",&Design->minReflectRCG,junk,&newline);
     Design->minReflectRCG *= 1E-27;
   	// .. Minimum Direct RCG .. //
@@ -1180,10 +1183,11 @@ void initConsPropagator(void)
 
 void initConsPerform(void)
 {
-    int iSoOp, iRow, iCol;
+    int iSoOp, iRow, iCol, taskID;
+    long iTx;
     uint16_t rowSt, colSt;
     struct DesignSoOpType *DS;
-    char antFileName[40];
+    char saiPath[200];
 
     Design->nCol = Grid[0].nCol / Design->gridDivisor;
 
@@ -1208,17 +1212,33 @@ void initConsPerform(void)
                 }
             }
         }
-        // .. Receive Antenna for Analysis .. //
+    }
+
+    // .. SAI observation model: replaces the Rx antenna and RCG entries of Inp_Design.txt .. //
+    sprintf(saiPath, "%sInp_SAI.txt", SimPath);
+    if(saiLoad(saiPath, AntPath, &Design->sai) != 0){
+        printf("Cannot load the SAI observation model %s.  Bailing out!\n", saiPath);
+        exit(1);
+    }
+    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
         DS = &Design->SoOp[iSoOp];
-        if(DS->antTag == USER_DEFINED){
-            DS->antPattern = LoadAntPattern(DS->antFileName, &DS->antPatRes, DS->antPattern);
-            sprintf(antFileName, "UD_%s", DS->name);
+        DS->saiTx = (const SaiTx **) calloc(DS->nTx, sizeof(const SaiTx *));
+        if (DS->saiTx == NULL) {
+            printf("DS->saiTx calloc returned null pointer.  Bailing out!\n");
+            exit(1);
         }
-        else if(DS->antTag == GAUSSIAN){
-            DS->antPattern = LoadAntPatternGG(DS->SLL, DS->XPL, DS->hpbw, DS->antPatRes, DS->antPattern);
-            sprintf(antFileName, "GG_%s", DS->name);
+        for(iTx=0; iTx<DS->nTx; iTx++){
+            DS->saiTx[iTx] = saiFindTx(&Design->sai, DS->name, DS->TxName[iTx]);
+            if(DS->saiTx[iTx] == NULL){
+                printf("SoOp %s (Tx %s) is not in %s.  Bailing out!\n", DS->name, DS->TxName[iTx], saiPath);
+                exit(1);
+            }
         }
-        //ReportAntPattern(antFileName, DS->antPatRes, DS->antPattern);
+    }
+    MPI_Comm_rank(MPI_COMM_WORLD, &taskID);
+    if(taskID == MASTER){
+        printf("SAI observation model: %s, run tag %s\n", Design->sai.source, Design->sai.runTag);
+        printf("Notice: the Rx antenna gain/pattern and Minimum Reflected RCG entries of Inp_Design.txt are not used.\n");
     }
 
     Design->ncRevisitTimeID = (int *) calloc(Design->nSoOp, sizeof(int));
@@ -1295,6 +1315,15 @@ void initConsPerform(void)
     Design->nSpInvalid = (int *) calloc(Design->nSoOp, sizeof(int));
     if (Design->nSpInvalid == NULL) {
         printf("Design->nSpInvalid calloc returned null pointer.  Bailing out!\n");
+        exit(1);
+    }
+    Design->nSpPassX = (int *) calloc(Design->nSoOp, sizeof(int));
+    Design->nSpPassY = (int *) calloc(Design->nSoOp, sizeof(int));
+    Design->nSpPassLcp = (int *) calloc(Design->nSoOp, sizeof(int));
+    Design->nSpKappa = (int *) calloc(Design->nSoOp, sizeof(int));
+    Design->nSpOffGrid = (int *) calloc(Design->nSoOp, sizeof(int));
+    if (Design->nSpPassX == NULL || Design->nSpPassY == NULL || Design->nSpPassLcp == NULL || Design->nSpKappa == NULL || Design->nSpOffGrid == NULL) {
+        printf("Design->nSpPass* calloc returned null pointer.  Bailing out!\n");
         exit(1);
     }
     Design->nCell.total = Grid[0].nRow * Grid[0].nCol;
@@ -1541,6 +1570,11 @@ void resetPerformVars(void)
         Design->startpAccessTime2nd[iSoOp] = 0;
         Design->nSpValid[iSoOp] = 0;
         Design->nSpInvalid[iSoOp] = 0;
+        Design->nSpPassX[iSoOp] = 0;
+        Design->nSpPassY[iSoOp] = 0;
+        Design->nSpPassLcp[iSoOp] = 0;
+        Design->nSpKappa[iSoOp] = 0;
+        Design->nSpOffGrid[iSoOp] = 0;
     }
 }
 
@@ -2231,55 +2265,6 @@ void writeCostNc(void)
         ERR(retval)
 }
 
-int initSAImodel(modelSAI *SAI, const char *TxName, tableCDF *cdf_table)
-{
-    // RZSM Error Model for LHCP Reflectivity, 4 frequency bands (137, 255, 370, 1575.42 MHz)
-    double a_SM_eta = (0.6222+0.6385)/2;
-    double a_SM_T = (2.542e-4 + 2.277e-4)/2;
-    double b_SM = (0.0844 + 0.0789 + 0.0810 + 0.0803)/4;
-    double RMSE_SM_target = 0.09;
-    double T = 12;
-    double eta_max_avg = 1/a_SM_eta * sqrt((RMSE_SM_target - b_SM)*(RMSE_SM_target - b_SM) - (a_SM_T*T)*(a_SM_T*T));
-    double N_incoh[3] = {100, 50, 1000}; // Number of incoherent samples averaged in the reflectivity measurement
-    double eta_max_single;
-    double eta_bar_single;
-    double BW_signal[3] = {16e3, 25e3, 5e6}; // Signal bandwidth in Hz
-    double T_integ[3] = {0.01, 0.02, 0.001}; // Integration time in sec
-    double S0[3] = {1.247913816202226e+15, 7.289963274631603e+15, 6.892428308691730e+14};
-    double alpha_threshold[3] = {3.737435820648506e+15, 5.492451164628094e+16, 2.498832837131167e+17};
-    int iSoOp;
-    
-    if(!strcmp(TxName, "ORBCOMM")){
-        iSoOp = 0;
-    }
-    else if(!strcmp(TxName, "UFO")){
-        iSoOp = 1;
-    }
-    else if(!strcmp(TxName, "MUOS")){
-        iSoOp = 2;
-    }
-    else{
-        fprintf(stderr, "Unsupported TxName: %s\n", TxName);
-        return -1;
-    }
-    eta_max_single = eta_max_avg * sqrt(N_incoh[iSoOp]);
-    eta_bar_single = sqrt(sqrt(eta_max_single*eta_max_single + 1) - 1);
-
-    SAI->S0 = S0[iSoOp];
-    SAI->alpha_threshold = alpha_threshold[iSoOp];
-    SAI->eta_bar_single = eta_bar_single;
-    SAI->N_coh = T_integ[iSoOp]*BW_signal[iSoOp]; // Number of coherent samples in the integration time
-    SAI->gamma = 0.8;
-
-    // Read reflectivity CDF table
-    SAI->X = get_x_column(cdf_table, iSoOp); // Get the x column for the current SoOp from the CDF table
-    if (!SAI->X) {
-        fprintf(stderr, "Unsupported SoOp: %d\n", iSoOp);
-        return -1;
-    }
-    return 0;
-}
-
 void readSpDataNc(int iteration)
 {
     // IDs for the netCDF file, dimensions, and variables.
@@ -2294,18 +2279,12 @@ void readSpDataNc(int iteration)
     // Loop
     int iRx, iSoOp, iTx, iSp;
     long iRow, iCol;
-    // Flag
-    int flagValid;
-    // For RCG constraints
-    double RCG_R, antGainD, antGainR;
-    //double threshold_RCG_D[3] = {2.51353004264460e-15, 4.70350610913321e-16, 1.28655266830211e-16};
     struct DesignSoOpType *DS;
     // Grid
     struct EASEgridType *G;
-    // CDF table for SAI model
-    tableCDF cdf_table;
     // SAI model
-    modelSAI SAI;
+    const SaiTx *T;
+    unsigned saiMask;
 
     // Reset variables
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
@@ -2318,10 +2297,6 @@ void readSpDataNc(int iteration)
         }
     }
 
-    if (read_cdf_table("reflectivity_cdf_table.txt", &cdf_table) != 0) {
-        exit(1);
-    }
-    
     /* Create the file. */
     for(iRx=0; iRx<Design->nRx; iRx++){
         if(Design->consType == WALKER){
@@ -2335,15 +2310,11 @@ void readSpDataNc(int iteration)
             ERR(retval);
             
         for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-            DS = &Design->SoOp[iSoOp];      
+            DS = &Design->SoOp[iSoOp];
 
-            if(!strcmp(DS->name, "ORBCOMM") || !strcmp(DS->name, "UFO") || !strcmp(DS->name, "MUOS")){
-                if (initSAImodel(&SAI, DS->name, &cdf_table) != 0) {
-                    exit(1);
-                }
-            }
             for(iTx=0; iTx<DS->nTx; iTx++){
                 strcpy(TxName, DS->TxName[iTx]);
+                T = DS->saiTx[iTx];
                 sprintf(dimName, "nSp_%s", TxName);
                 if ((retval = nc_inq_dimid(Design->ncID[iRx], dimName, &dimID)))
                     ERR(retval);
@@ -2473,7 +2444,8 @@ void readSpDataNc(int iteration)
                     if ((retval = nc_get_var_double(Design->ncID[iRx], Design->ncRangeSRID[iRx][iSoOp], &Design->accessRangeSR[0])))
                         ERR(retval);
 
-                    if(!strcmp(TxName, "MUOS")){
+                    // Spot-beam rule from Inp_SAI.txt: MUOS only, not UFO on the MUOS orbits
+                    if(T->useSpotbeam){
                         Design->accessSpotbeam = (int *) realloc(Design->accessSpotbeam, sizeof(int)*dimNSp);
                         if (Design->accessSpotbeam == NULL) {
                             printf("Design->accessSpotbeam calloc returned null pointer.  Bailing out!\n");
@@ -2489,87 +2461,39 @@ void readSpDataNc(int iteration)
                     }
                     
                     for(iSp=0; iSp<dimNSp; iSp++){
-                        if(!strcmp(TxName, "MUOS"))
-                            flagValid = Design->accessSpotbeam[iSp];
-                        else
-                            flagValid = TRUE;
-                        if(flagValid){
-                            G = &Grid[0];
-                            // Mapping indices
-                            ease2_LL2RC(G, Design->accessLat[iSp], Design->accessLon[iSp], &iRow, &iCol);
-                            iCol = iCol - iteration*Design->nCol;
-                            if(iCol < Design->nCol && iCol >= 0){
-                                // Read antenna gain
-                                if(DS->antTag == IDEAL){
-                                    // Transmitter direction
-                                    Bistatic->g_rt[0][0] = 1; Bistatic->g_rt[0][1] = 0;
-                                    Bistatic->g_rt[1][0] = 0; Bistatic->g_rt[1][1] = 1;
-                                    // Specular direction
-                                    Bistatic->g_rs[0][0] = 1; Bistatic->g_rs[0][1] = 0;
-                                    Bistatic->g_rs[1][0] = 0; Bistatic->g_rs[1][1] = 1;
-                                }
-                                else if(DS->antTag == GAUSSIAN){
-                                    // Transmitter direction
-                                    LookupAntPattern(DS->antPattern, DS->antPatRes, Pi - Design->accessLookAngElD[iSp], Pi - Design->accessLookAngAzD[iSp], Bistatic->g_rt);
-                                    // Specular direction
-                                    LookupAntPattern(DS->antPattern, DS->antPatRes, Design->accessLookAngElR[iSp], Design->accessLookAngAzR[iSp], Bistatic->g_rs);
-                                }
-                                else if(DS->antTag == USER_DEFINED){
-                                    // Transmitter direction
-                                    LookupAntPattern(DS->antPattern, DS->antPatRes, Design->accessLookAngElD[iSp], Design->accessLookAngAzD[iSp], Bistatic->g_rt);
-                                    // Specular direction
-                                    LookupAntPattern(DS->antPattern, DS->antPatRes, Design->accessLookAngElR[iSp], Design->accessLookAngAzR[iSp], Bistatic->g_rs);
-                                }
-                                
-                                antGainR = cabs(Bistatic->g_rs[0][1])*cabs(Bistatic->g_rs[0][1]) * DS->G_Rx_num;
+                        if(T->useSpotbeam && !Design->accessSpotbeam[iSp])
+                            continue;
+                        G = &Grid[0];
+                        // Mapping indices
+                        ease2_LL2RC(G, Design->accessLat[iSp], Design->accessLon[iSp], &iRow, &iCol);
+                        if(iRow < 0 || iRow >= G->nRow || iCol < 0 || iCol >= Design->nCol*Design->gridDivisor){
+                            if(iteration == 0)
+                                Design->nSpOffGrid[iSoOp]++;
+                            continue;
+                        }
+                        iCol = iCol - iteration*Design->nCol;
+                        if(iCol < Design->nCol && iCol >= 0){
+                            // Observation tests of the SAI model (sai.c)
+                            saiMask = saiEvaluate(&Design->sai, T,
+                                                  Design->accessRangeTR[iSp], Design->accessRangeTS[iSp], Design->accessRangeSR[iSp],
+                                                  Design->accessLookAngElD[iSp], Design->accessLookAngAzD[iSp],
+                                                  Design->accessLookAngElR[iSp], Design->accessLookAngAzR[iSp], NULL);
+                            if(saiMask & SAI_PASS_X) Design->nSpPassX[iSoOp]++;
+                            if(saiMask & SAI_PASS_Y) Design->nSpPassY[iSoOp]++;
+                            if(saiMask & SAI_PASS_LCP) Design->nSpPassLcp[iSoOp]++;
+                            if(saiMask & SAI_KAPPA_GT_M1) Design->nSpKappa[iSoOp]++;
 
-                                // Check RCG constraints
-                                if(!strcmp(TxName, "GPS") || !strcmp(TxName, "Galileo") || !strcmp(TxName, "Beidou") || !strcmp(TxName, "GLONASS")){
-                                    RCG_R = antGainR / (Design->accessRangeTS[iSp]*Design->accessRangeTS[iSp]) / (Design->accessRangeSR[iSp]*Design->accessRangeSR[iSp]);
-                                    if(RCG_R > Design->minReflectRCG)
-                                        flagValid = TRUE;
-                                    else
-                                        flagValid = FALSE;
+                            // Sort data into a grid: the usable observation is the H&V product
+                            if((saiMask & SAI_PASS_HV) == SAI_PASS_HV){
+                                Design->nSpValid[iSoOp]++;
+                                Design->griddata[iSoOp][iRow][iCol][Design->griddataCnt[iSoOp][iRow][iCol]++] = Design->accessSec[iSp];
+                                if(Design->griddataCnt[iSoOp][iRow][iCol] == MAX_NSP){
+                                    printf("Error: nSp exceeds MAX_NSP, file:%s\n", fullpath);
+                                    exit(1);
                                 }
-                                else{
-                                    // Test 1
-                                    antGainD = cabs(Bistatic->g_rt[0][0])*cabs(Bistatic->g_rt[0][0]) * DS->G_Rx_num;
-                                    SAI.alpha = Design->accessRangeTR[iSp] * Design->accessRangeTR[iSp] / antGainD;
-                                    if (SAI.alpha < SAI.alpha_threshold){
-                                        // Test 2
-                                        SAI.beta = antGainR * Design->accessRangeTR[iSp] * Design->accessRangeTR[iSp] / (antGainD * (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]) * (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]));
-                                        SAI.SD = SAI.S0 / SAI.alpha;
-                                        SAI.ND = 1 + 1/SAI.SD;
-                                        SAI.C = (1 + SAI.eta_bar_single * SAI.N_coh - 2 * SAI.ND) / 2;
-                                        SAI.Gamma_upper = (SAI.C + sqrt(SAI.C*SAI.C - SAI.ND*SAI.ND)) / SAI.beta;
-                                        SAI.Gamma_lower = (SAI.C - sqrt(SAI.C*SAI.C - SAI.ND*SAI.ND)) / SAI.beta;
-                                        SAI.F_upper = lookup_F_from_x(SAI.X, cdf_table.F, cdf_table.n, SAI.Gamma_upper);
-                                        SAI.F_lower = lookup_F_from_x(SAI.X, cdf_table.F, cdf_table.n, SAI.Gamma_lower);
-                                        
-                                        if( (SAI.F_upper - SAI.F_lower) > SAI.gamma){
-                                            flagValid = TRUE;
-                                        }
-                                        else{
-                                            flagValid = FALSE;
-                                        }
-                                    }
-                                    else{
-                                        flagValid = FALSE;
-                                    }
-                                }
-
-                                // Sort data into a grid
-                                if(flagValid){
-                                    Design->nSpValid[iSoOp]++;
-                                    Design->griddata[iSoOp][iRow][iCol][Design->griddataCnt[iSoOp][iRow][iCol]++] = Design->accessSec[iSp];
-                                    if(Design->griddataCnt[iSoOp][iRow][iCol] == MAX_NSP){
-                                        printf("Error: nSp exceeds MAX_NSP, file:%s\n", fullpath);
-                                        exit(1);
-                                    }
-                                }
-                                else{
-                                    Design->nSpInvalid[iSoOp]++;
-                                }
+                            }
+                            else{
+                                Design->nSpInvalid[iSoOp]++;
                             }
                         }
                     }
