@@ -110,7 +110,6 @@ struct DesignType{
 	// Other Variables
 	uint8_t flagTxPropagation; // if TRUE, propagate Tx, otherwise import existing data
 	long timeWindow;
-	double revisitThreshold;
 	double minReflectRCG; // minimum reflected RCG (m^-4), parsed but no longer used
 	double minDirectRCG; // minimum direct RCG (dB)
 	double maxRCGdiff; // maximum RCG difference (dB) 
@@ -163,9 +162,7 @@ struct DesignType{
 	double *accessRangeTS;
 	double *accessRangeSR;
 	int *accessSpotbeam;
-	// Variables for sorting Sp data into a grid
-	int ****griddata;
-	int ***griddataCnt;
+	// Longitudinal slicing of the analysis grid
 	int gridDivisor;
 	int nCol;
 	int nWindow;
@@ -174,20 +171,12 @@ struct DesignType{
 	struct DesignSoOpType *SoOp;
 	int ncPerformID;
 	int ncSuccessPerfID;
-	int *ncRevisitTimeID;
-	int *ncRevisitRowID;
-	int *ncRevisitColID;
-	int *ncAccessTime1stID;
-	int *ncAccessTime2ndID;
 	int *ncNspValidID;
 	int *ncNspInvalidID;
 	int ncObsFreqID;
 	int ncObsFreqLID;
 	int *ncSaiCntID; // per SoOp, SAI_NCNT counters (nSpPassX, nSpPassY, nSpPassLcp, nSpKappa, nSpOffGrid)
-	size_t *startpRevisit;
-	size_t *startpAccessTime1st;
-	size_t *startpAccessTime2nd;
-	int *obsFreq;
+	int *obsFreq; // H&V product of the current slice, bit iSoOp per [iWindow][iRow][iCol]
 	int *obsFreqL; // LHCP product of the current slice, bit iSoOp per [iWindow][iRow][iCol]
 	int *nSpValid; // H&V product: ports X and Y both pass
 	int *nSpInvalid;

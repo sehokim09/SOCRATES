@@ -10,6 +10,12 @@ function createFoM(projName, DesignParamsObj, performTag)
 %   Raw case-by-case results are written directly to the MAT file.
 %   Post-processing is performed only after all cases are completed.
 %
+%   Every coverage and revisit metric comes from obsFreq (bit k-1 = TxComb k,
+%   one 12-hour window per slice of the third dimension). MRT1T/MRT2T (per
+%   frequency combination) and SRT1T/SRT2T (per TxComb) are the per-cell Poisson
+%   rate censored at T_sim: m_i = T_sim / max(N_i, 1) averaged over land cells,
+%   N_i the number of windows (12 h for 1T, 24 h for 2T) with an observation.
+%
 %   See also missionDesigner
 %
 %   Copyright (C) 2023 Seho Kim
@@ -153,14 +159,11 @@ function createFoM(projName, DesignParamsObj, performTag)
         coverage2Tzonal = zeros(nNrx, nAlt, nInc, nNplane, nRow, nFreqComb);
         coverage2Tglobal = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
 
-        revisitTime50th = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
-        revisitTime90th = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
-        revisitTime95th = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
-        revisitTime98th = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
-        revisitTimeMean = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
-        
-        MRT1Tglobal = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
-        MRT2Tglobal = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
+        SRT1T = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
+        SRT2T = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
+
+        MRT1T = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
+        MRT2T = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
         Nmulti1T = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
         Nmulti2T = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
 
@@ -179,8 +182,8 @@ function createFoM(projName, DesignParamsObj, performTag)
             'coverage1T1st', 'coverage1T2nd', 'coverage2T1st', 'coverage2T2nd', ...
             'coverageMap1T', 'coverageMap2T', ...
             'coverage1Tzonal', 'coverage1Tglobal', 'coverage2Tzonal', 'coverage2Tglobal', ...
-            'revisitTime50th', 'revisitTime90th', 'revisitTime95th', 'revisitTime98th', 'revisitTimeMean', ...
-            'MRT1Tglobal', 'MRT2Tglobal', 'Nmulti1T', 'Nmulti2T', ...
+            'SRT1T', 'SRT2T', ...
+            'MRT1T', 'MRT2T', 'Nmulti1T', 'Nmulti2T', ...
             'nSpValid', 'nSpInvalid', 'nSpRatio', ...
             'caseDone', 'loopComplete', 'postProcessComplete', ...
             '-v7.3');
@@ -258,85 +261,22 @@ function createFoM(projName, DesignParamsObj, performTag)
                             end
                             tmpCoverageMap = obsFreqCumul;
 
-                            %% MRT for 1T (12-hour windows)
-                            nCellGrid = nCol * nRow;
-                            winIdx = 1:nWindow;
-                            
-                            tmpMRT1Tglobal = nan(1, nFreqComb);
+                            %% MRT and Nmulti
+                            %   MRT [days]: per land cell m_i = T_sim / max(N_i, 1), N_i the number
+                            %   of windows in which the cell saw every frequency of the combination
+                            %   (a cell never observed counts as T_sim); MRT is the mean of m_i over
+                            %   land cells. Nmulti: land cells observed in at least two windows.
+                            tmpMRT1T = nan(1, nFreqComb);
+                            tmpMRT2T = nan(1, nFreqComb);
                             tmpNmulti1T = zeros(1, nFreqComb);
-                            
-                            for iFreq = 1:nFreqComb
-                            
-                                % Multi-frequency observation mask
-                                obsMask3D = (bitand(obsFreq1T, freqComb(iFreq)) == freqComb(iFreq));
-                            
-                                % [nCell x nWindow]
-                                obsMask2D = reshape(obsMask3D, nCellGrid, nWindow);
-                            
-                                % Window indices (NaN where no observation)
-                                obsWin = repmat(winIdx, nCellGrid, 1);
-                                obsWin(~obsMask2D) = NaN;
-                            
-                                % Previous observation index
-                                prevObsWin = [nan(nCellGrid,1), fillmissing(obsWin(:,1:end-1), 'previous', 2)];
-                            
-                                % Revisit intervals (hours)
-                                revisitIntervals = (obsWin - prevObsWin) * windowHours1T;
-                            
-                                % Keep only valid successive observations
-                                validIntervals = obsMask2D & isfinite(prevObsWin);
-                                revisitIntervals(~validIntervals) = NaN;
-                            
-                                % Cell-wise MRT
-                                cellMean = mean(revisitIntervals, 2, 'omitnan');
-                            
-                                % Apply land mask
-                                landmaskVec = reshape(landmask(:,:,iFreq), nCellGrid, 1);
-                            
-                                validCells = any(validIntervals, 2) & landmaskVec;
-                                tmpNmulti1T(iFreq) = nnz(validCells);
-                            
-                                if tmpNmulti1T(iFreq) > 0
-                                    tmpMRT1Tglobal(iFreq) = mean(cellMean(validCells), 'omitnan');
-                                end
-                            
-                            end
-                            %% MRT for 2T (24-hour windows)
-                            nWindow2T = nWindow / 2;
-                            winIdx2 = 1:nWindow2T;
-                            
-                            tmpMRT2Tglobal = nan(1, nFreqComb);
                             tmpNmulti2T = zeros(1, nFreqComb);
-                            
                             for iFreq = 1:nFreqComb
-                            
-                                obsMask3D = (bitand(obsFreq2T, freqComb(iFreq)) == freqComb(iFreq));
-                                obsMask2D = reshape(obsMask3D, nCellGrid, nWindow2T);
-                            
-                                obsWin = repmat(winIdx2, nCellGrid, 1);
-                                obsWin(~obsMask2D) = NaN;
-                            
-                                prevObsWin = [nan(nCellGrid,1), fillmissing(obsWin(:,1:end-1), 'previous', 2)];
-                            
-                                revisitIntervals = (obsWin - prevObsWin) * windowHours2T;
-                            
-                                validIntervals = obsMask2D & isfinite(prevObsWin);
-                                revisitIntervals(~validIntervals) = NaN;
-                            
-                                cellMean = mean(revisitIntervals, 2, 'omitnan');
-                            
-                                landmaskVec = reshape(landmask(:,:,iFreq), nCellGrid, 1);
-                            
-                                validCells = any(validIntervals, 2) & landmaskVec;
-                                tmpNmulti2T(iFreq) = nnz(validCells);
-                            
-                                if tmpNmulti2T(iFreq) > 0
-                                    tmpMRT2Tglobal(iFreq) = mean(cellMean(validCells), 'omitnan');
-                                end
-                            
+                                landmaskVec = reshape(landmask(:,:,iFreq), [], 1);
+                                [tmpMRT1T(iFreq), tmpNmulti1T(iFreq)] = revisitTimeWindows( ...
+                                    bitand(obsFreq1T, freqComb(iFreq)) == freqComb(iFreq), windowHours1T, landmaskVec);
+                                [tmpMRT2T(iFreq), tmpNmulti2T(iFreq)] = revisitTimeWindows( ...
+                                    bitand(obsFreq2T, freqComb(iFreq)) == freqComb(iFreq), windowHours2T, landmaskVec);
                             end
-                            tmpMRT1Tglobal = tmpMRT1Tglobal / 24;
-                            tmpMRT2Tglobal = tmpMRT2Tglobal / 24;
 
                             %% 1T coverage
                             obs1Tcumul = zeros(nCol, nRow, nFreqComb);
@@ -402,47 +342,22 @@ function createFoM(projName, DesignParamsObj, performTag)
 
                             %% Tx-combination metrics
                             tmpCoverageMax = zeros(1, nTxComb);
-                            tmpRevisitTime50th = zeros(1, nTxComb);
-                            tmpRevisitTime90th = zeros(1, nTxComb);
-                            tmpRevisitTime95th = zeros(1, nTxComb);
-                            tmpRevisitTime98th = zeros(1, nTxComb);
-                            tmpRevisitTimeMean = zeros(1, nTxComb);
+                            tmpSRT1T = nan(1, nTxComb);
+                            tmpSRT2T = nan(1, nTxComb);
                             tmpNSpValid = zeros(1, nTxComb);
                             tmpNSpInvalid = zeros(1, nTxComb);
                             tmpNSpRatio = zeros(1, nTxComb);
 
+                            landmaskVec = reshape(landmask(:,:,1), [], 1);
                             for iTxComb = 1:nTxComb
-                                accessTime1st = ncread( ...
-                                    fullfile(dir_spdata(iNrx,iAlt,iInc,iNplane), ...
-                                    filename_perform(iNrx,iAlt,iInc,iNplane)), ...
-                                    strcat("accessTime1st_", TxCombName{iTxComb}));
-                                accessTime1st = sort(accessTime1st);
-                                coverage = (1:length(accessTime1st)) / double(nCell) * 100;
-                                if isempty(coverage)
-                                    tmpCoverageMax(iTxComb) = 0;
-                                else
-                                    tmpCoverageMax(iTxComb) = max(coverage);
-                                end
+                                txBit = 2^(iTxComb-1);      % obsFreq bit of this TxComb
 
-                                revisitTime = ncread( ...
-                                    fullfile(dir_spdata(iNrx,iAlt,iInc,iNplane), ...
-                                    filename_perform(iNrx,iAlt,iInc,iNplane)), ...
-                                    strcat("revisitTime_", TxCombName{iTxComb}));
+                                % Coverage: grid cells observed in any window
+                                tmpCoverageMax(iTxComb) = nnz(bitand(obsFreqCumul, txBit)) / double(nCell) * 100;
 
-                                if isempty(revisitTime)
-                                    tmpRevisitTime50th(iTxComb) = NaN;
-                                    tmpRevisitTime90th(iTxComb) = NaN;
-                                    tmpRevisitTime95th(iTxComb) = NaN;
-                                    tmpRevisitTime98th(iTxComb) = NaN;
-                                    tmpRevisitTimeMean(iTxComb) = NaN;
-                                else
-                                    percentile = prctile(revisitTime, [50, 90, 95, 98]) / 60 / 60 / 24;
-                                    tmpRevisitTime50th(iTxComb) = percentile(1);
-                                    tmpRevisitTime90th(iTxComb) = percentile(2);
-                                    tmpRevisitTime95th(iTxComb) = percentile(3);
-                                    tmpRevisitTime98th(iTxComb) = percentile(4);
-                                    tmpRevisitTimeMean(iTxComb) = mean(revisitTime) / 60 / 60 / 24;
-                                end
+                                % SRT [days]: the MRT definition applied to this TxComb alone
+                                tmpSRT1T(iTxComb) = revisitTimeWindows(bitand(obsFreq1T, txBit) ~= 0, windowHours1T, landmaskVec);
+                                tmpSRT2T(iTxComb) = revisitTimeWindows(bitand(obsFreq2T, txBit) ~= 0, windowHours2T, landmaskVec);
 
                                 nValid = ncread( ...
                                     fullfile(dir_spdata(iNrx,iAlt,iInc,iNplane), ...
@@ -504,16 +419,10 @@ function createFoM(projName, DesignParamsObj, performTag)
                             M.coverageMax(iNrx,iAlt,iInc,iNplane,:) = ...
                                 reshape(tmpCoverageMax, [1 1 1 1 nTxComb]);
                             
-                            M.revisitTime50th(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpRevisitTime50th, [1 1 1 1 nTxComb]);
-                            M.revisitTime90th(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpRevisitTime90th, [1 1 1 1 nTxComb]);
-                            M.revisitTime95th(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpRevisitTime95th, [1 1 1 1 nTxComb]);
-                            M.revisitTime98th(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpRevisitTime98th, [1 1 1 1 nTxComb]);
-                            M.revisitTimeMean(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpRevisitTimeMean, [1 1 1 1 nTxComb]);
+                            M.SRT1T(iNrx,iAlt,iInc,iNplane,:) = ...
+                                reshape(tmpSRT1T, [1 1 1 1 nTxComb]);
+                            M.SRT2T(iNrx,iAlt,iInc,iNplane,:) = ...
+                                reshape(tmpSRT2T, [1 1 1 1 nTxComb]);
                             
                             M.nSpValid(iNrx,iAlt,iInc,iNplane,:) = ...
                                 reshape(tmpNSpValid, [1 1 1 1 nTxComb]);
@@ -522,11 +431,11 @@ function createFoM(projName, DesignParamsObj, performTag)
                             M.nSpRatio(iNrx,iAlt,iInc,iNplane,:) = ...
                                 reshape(tmpNSpRatio, [1 1 1 1 nTxComb]);
 
-                            M.MRT1Tglobal(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpMRT1Tglobal, [1 1 1 1 nFreqComb]);
-                            
-                            M.MRT2Tglobal(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpMRT2Tglobal, [1 1 1 1 nFreqComb]);
+                            M.MRT1T(iNrx,iAlt,iInc,iNplane,:) = ...
+                                reshape(tmpMRT1T, [1 1 1 1 nFreqComb]);
+
+                            M.MRT2T(iNrx,iAlt,iInc,iNplane,:) = ...
+                                reshape(tmpMRT2T, [1 1 1 1 nFreqComb]);
                             
                             M.Nmulti1T(iNrx,iAlt,iInc,iNplane,:) = ...
                                 reshape(tmpNmulti1T, [1 1 1 1 nFreqComb]);
@@ -608,16 +517,11 @@ function createFoM(projName, DesignParamsObj, performTag)
     MSC2T1st = reshape(squeeze(S.coverage2T1st(:,:,:,:,end,:)), [], nFreqComb);
     MSC2T2nd = reshape(squeeze(S.coverage2T2nd(:,:,:,:,end,:)), [], nFreqComb);
 
-    MTC1Tglobal = reshape(S.MRT1Tglobal, [], nFreqComb);
-    MTC2Tglobal = reshape(S.MRT2Tglobal, [], nFreqComb);
-    % MTC1Tglobal = reshape(S.coverage1Tglobal, [], nFreqComb);
-    % MTC2Tglobal = reshape(S.coverage2Tglobal, [], nFreqComb);
+    MRT1T = reshape(S.MRT1T, [], nFreqComb);
+    MRT2T = reshape(S.MRT2T, [], nFreqComb);
 
-    revisitTime50th = reshape(S.revisitTime50th, nCase, nTxComb);
-    revisitTime90th = reshape(S.revisitTime90th, nCase, nTxComb);
-    revisitTime95th = reshape(S.revisitTime95th, nCase, nTxComb);
-    revisitTime98th = reshape(S.revisitTime98th, nCase, nTxComb);
-    revisitTimeMean = reshape(S.revisitTimeMean, nCase, nTxComb);
+    SRT1T = reshape(S.SRT1T, nCase, nTxComb);
+    SRT2T = reshape(S.SRT2T, nCase, nTxComb);
 
     nSpValid = reshape(S.nSpValid, nCase, nTxComb);
     nSpInvalid = reshape(S.nSpInvalid, nCase, nTxComb);
@@ -635,8 +539,8 @@ function createFoM(projName, DesignParamsObj, performTag)
         'costTotal', 'costSats', 'costDedicated', 'costRideshare', 'launchOption', 'nLaunch', ...
         'coverageMax', ...
         'MSC1T1st', 'MSC1T2nd', 'MSC2T1st', 'MSC2T2nd', ...
-        'MTC1Tglobal', 'MTC2Tglobal', ...
-        'revisitTime50th', 'revisitTime90th', 'revisitTime95th', 'revisitTime98th', 'revisitTimeMean', ...
+        'MRT1T', 'MRT2T', ...
+        'SRT1T', 'SRT2T', ...
         'nSpValid', 'nSpInvalid', 'nSpRatio', ...
         '-append');
 
@@ -644,4 +548,24 @@ function createFoM(projName, DesignParamsObj, performTag)
     M.postProcessComplete = true;
 
     fprintf('Post-processing completed successfully.\n');
+end
+
+function [rtDays, nMulti] = revisitTimeWindows(obsMask, windowHours, landmaskVec)
+% REVISITTIMEWINDOWS  Revisit time from window observations, in days.
+%
+%   obsMask [nCol x nRow x nWindow] is true where a cell was observed in a
+%   window. Per land cell, N_i = number of windows with an observation and
+%   m_i = T_sim / max(N_i, 1), so a cell never observed counts as T_sim; the
+%   result is the mean of m_i over the land cells (per-cell Poisson rate,
+%   censored at T_sim). nMulti = land cells observed in at least two windows.
+    nWindow = size(obsMask, 3);
+    Tsim = nWindow * windowHours;                      % hours
+    N = sum(reshape(obsMask, [], nWindow), 2);
+    N = N(landmaskVec);
+    nMulti = nnz(N >= 2);
+    if isempty(N)
+        rtDays = NaN;
+    else
+        rtDays = mean(Tsim ./ max(double(N), 1)) / 24;
+    end
 end

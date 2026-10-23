@@ -1191,29 +1191,6 @@ void initConsPerform(void)
 
     Design->nCol = Grid[0].nCol / Design->gridDivisor;
 
-    // .. Memory allocation  .. //
-    Design->griddata = (int ****) calloc(Design->nSoOp, sizeof(int ***));
-    Design->griddataCnt = (int ***) calloc(Design->nSoOp, sizeof(int **));
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        Design->griddata[iSoOp] = (int ***) calloc(Grid[0].nRow, sizeof(int **));
-        Design->griddataCnt[iSoOp] = (int **) calloc(Grid[0].nRow, sizeof(int *));
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            Design->griddata[iSoOp][iRow] = (int **) calloc(Design->nCol, sizeof(int *));
-            Design->griddataCnt[iSoOp][iRow] = (int *) calloc(Design->nCol, sizeof(int));
-            if (Design->griddataCnt[iSoOp][iRow] == NULL) {
-                printf("Design->griddataCnt[iRow] calloc returned null pointer.  Bailing out!\n");
-                exit(1);
-            } 
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                Design->griddata[iSoOp][iRow][iCol] = (int *) calloc(MAX_NSP, sizeof(int));
-                if (Design->griddata[iSoOp][iRow][iCol] == NULL) {
-                    printf("Design->griddata[iSoOp][iRow][iCol] calloc returned null pointer.  Bailing out!\n");
-                    exit(1);
-                }
-            }
-        }
-    }
-
     // .. SAI observation model: replaces the Rx antenna and RCG entries of Inp_Design.txt .. //
     sprintf(saiPath, "%sInp_SAI.txt", SimPath);
     if(saiLoad(saiPath, AntPath, &Design->sai) != 0){
@@ -1241,36 +1218,6 @@ void initConsPerform(void)
         printf("Notice: the Rx antenna gain/pattern and Minimum Reflected RCG entries of Inp_Design.txt are not used.\n");
     }
 
-    Design->ncRevisitTimeID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncRevisitTimeID == NULL) {
-        printf("Design->ncRevisitTimeID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
-    Design->ncRevisitRowID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncRevisitRowID == NULL) {
-        printf("Design->ncRevisitRowID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
-    Design->ncRevisitColID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncRevisitColID == NULL) {
-        printf("Design->ncRevisitColID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
-    Design->ncAccessTime1stID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncAccessTime1stID == NULL) {
-        printf("Design->ncAccessTime1stID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
-    Design->ncAccessTime2ndID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncAccessTime2ndID == NULL) {
-        printf("Design->ncAccessTime2ndID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
     Design->ncNspValidID = (int *) calloc(Design->nSoOp, sizeof(int));
     if (Design->ncNspValidID == NULL) {
         printf("Design->ncNspValidID calloc returned null pointer.  Bailing out!\n");
@@ -1283,26 +1230,9 @@ void initConsPerform(void)
         exit(1);
     }
 
-    Design->startpRevisit = (size_t *) calloc(Design->nSoOp, sizeof(size_t));
-    if (Design->startpRevisit == NULL) {
-        printf("Design->startpRevisit calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-        
-    Design->startpAccessTime1st = (size_t *) calloc(Design->nSoOp, sizeof(size_t));
-    if (Design->startpAccessTime1st == NULL) {
-        printf("Design->startpAccessTime1st calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-        
-    Design->startpAccessTime2nd = (size_t *) calloc(Design->nSoOp, sizeof(size_t));
-    if (Design->startpAccessTime2nd == NULL) {
-        printf("Design->startpAccessTime2nd calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
 
     Design->nWindow = (int) STOPTIME/Design->timeWindow;
-    Design->obsFreq = (int *) calloc(Grid[0].nRow*Design->nCol, sizeof(int));
+    Design->obsFreq = (int *) calloc((size_t) Design->nWindow*Grid[0].nRow*Design->nCol, sizeof(int));
     if (Design->obsFreq == NULL) {
         printf("Design->obsFreq calloc returned null pointer.  Bailing out!\n");
         exit(1);
@@ -1368,8 +1298,6 @@ void initConsPerform(void)
         free(Design->landmask[iRow]);
     }
     free(Design->landmask);
-
-    Design->revisitThreshold = 3600;
 }
 
 /* Electron maximum payload mass (kg) to a circular orbit, interpolated from the
@@ -1575,9 +1503,6 @@ void resetPerformVars(void)
     }
 
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        Design->startpRevisit[iSoOp] = 0;
-        Design->startpAccessTime1st[iSoOp] = 0;
-        Design->startpAccessTime2nd[iSoOp] = 0;
         Design->nSpValid[iSoOp] = 0;
         Design->nSpInvalid[iSoOp] = 0;
         Design->nSpPassX[iSoOp] = 0;
@@ -1983,52 +1908,8 @@ void createPerformNc(void)
     if ((retval = nc_def_dim(Design->ncPerformID, "nSaiCount", 1, &dimSaiID)))
         ERR(retval);
 
-    // .. Variables for coverage metrics .. //
+    // .. Per-SoOp counters (coverage and revisit metrics come from obsFreq) .. //
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        // .. Revisit time .. //
-        sprintf(dimName, "nRevisit_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_dim(Design->ncPerformID, dimName, NC_UNLIMITED, &dimID)))
-            ERR(retval);
-
-        sprintf(varName, "revisitTime_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncRevisitTimeID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncRevisitTimeID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
-        sprintf(varName, "revisitRow_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncRevisitRowID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncRevisitRowID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
-        sprintf(varName, "revisitCol_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncRevisitColID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncRevisitColID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
-        // .. Coverage .. // 
-        // Visited
-        sprintf(dimName, "nAccess1st_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_dim(Design->ncPerformID, dimName, NC_UNLIMITED, &dimID)))
-            ERR(retval);
-        sprintf(varName, "accessTime1st_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncAccessTime1stID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncAccessTime1stID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
-        // Revisited
-        sprintf(dimName, "nAccess2nd_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_dim(Design->ncPerformID, dimName, NC_UNLIMITED, &dimID)))
-            ERR(retval);
-        sprintf(varName, "accessTime2nd_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncAccessTime2ndID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncAccessTime2ndID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
         // .. Valid/Invalid points .. //
         // # valid points
         sprintf(dimName, "n_nSpValid_%s", Design->SoOp[iSoOp].name);
@@ -2180,60 +2061,6 @@ void writeSpDataNc(long iRx, long iSoOp, struct SpecularType *Sp)
     Design->ncCnt[iRx][iSoOp]++;
 }
 
-void writeRevisitTimeNc(void)
-{
-    int retval;
-    size_t count[1] = {1};
-    int iRow, iCol, iSoOp, iSp, nSp;
-    int revisitTime;
-
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                nSp = Design->griddataCnt[iSoOp][iRow][iCol];
-                // Compute revisit time
-                for(iSp=0; iSp<nSp-1; iSp++){
-                    revisitTime = Design->griddata[iSoOp][iRow][iCol][iSp+1] - Design->griddata[iSoOp][iRow][iCol][iSp];
-                    if(revisitTime > Design->revisitThreshold){
-                        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncRevisitTimeID[iSoOp], &Design->startpRevisit[iSoOp], count, &revisitTime)))
-                            ERR(retval)
-                        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncRevisitRowID[iSoOp], &Design->startpRevisit[iSoOp], count, &iRow)))
-                            ERR(retval)
-                        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncRevisitColID[iSoOp], &Design->startpRevisit[iSoOp], count, &iCol)))
-                            ERR(retval)
-                        Design->startpRevisit[iSoOp]++;
-                    }
-                }
-            }
-        }
-    }
-}
-
-void writeAccessTimeNc(void)
-{
-    int retval;
-    size_t count[1] = {1};
-    int iRow, iCol, iSoOp;
-
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        // Write time of 1st and 2nd accesses on each cell
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                if(Design->griddataCnt[iSoOp][iRow][iCol]>0){
-                    if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncAccessTime1stID[iSoOp], &Design->startpAccessTime1st[iSoOp], count, &Design->griddata[iSoOp][iRow][iCol][0])))
-                        ERR(retval)
-                    Design->startpAccessTime1st[iSoOp]++;
-                }
-                if(Design->griddataCnt[iSoOp][iRow][iCol]>1){
-                    if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncAccessTime2ndID[iSoOp], &Design->startpAccessTime2nd[iSoOp], count, &Design->griddata[iSoOp][iRow][iCol][1])))
-                        ERR(retval)
-                    Design->startpAccessTime2nd[iSoOp]++;
-                }
-            }
-        }
-    }
-}
-
 void writeNspNc(void)
 {
     int retval, iSoOp, k;
@@ -2255,8 +2082,7 @@ void writeObsFreqNc(int iteration)
 {
     int retval;
     size_t start[3], count[3];
-    int iRow, iCol, iSoOp, iSp, nSp, iWindow;
-    int windowNum, obsFreqWindow;
+    int iWindow;
 
     start[1] = 0;
     start[2] = iteration*Design->nCol;
@@ -2265,23 +2091,8 @@ void writeObsFreqNc(int iteration)
     count[2] = Design->nCol;
 
     for(iWindow=0; iWindow<Design->nWindow; iWindow++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){ // Sort SP data
-                obsFreqWindow = NO_OBS;
-                for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-                    nSp = Design->griddataCnt[iSoOp][iRow][iCol];
-                    for(iSp=0; iSp<nSp; iSp++){
-                        windowNum = Design->griddata[iSoOp][iRow][iCol][iSp] / Design->timeWindow;
-                        if(windowNum == iWindow){
-                            obsFreqWindow |= 1<<(iSoOp);
-                        }
-                    }
-                }
-                Design->obsFreq[iRow*Design->nCol + iCol] = obsFreqWindow; 
-            }
-        }
         start[0] = iWindow;
-        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncObsFreqID, start, count, &Design->obsFreq[0])))
+        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncObsFreqID, start, count, &Design->obsFreq[(size_t) iWindow*Grid[0].nRow*Design->nCol])))
             ERR(retval);
         if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncObsFreqLID, start, count, &Design->obsFreqL[(size_t) iWindow*Grid[0].nRow*Design->nCol])))
             ERR(retval);
@@ -2327,16 +2138,8 @@ void readSpDataNc(int iteration)
     unsigned saiMask;
     long iWindow;
 
-    // Reset variables
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                Design->griddataCnt[iSoOp][iRow][iCol] = 0;
-                for(iSp=0; iSp<MAX_NSP; iSp++)
-                    Design->griddata[iSoOp][iRow][iCol][iSp] = 0;
-            }
-        }
-    }
+    // Reset the window bitmasks of this slice
+    memset(Design->obsFreq, 0, sizeof(int)*Design->nWindow*Grid[0].nRow*Design->nCol);
     memset(Design->obsFreqL, 0, sizeof(int)*Design->nWindow*Grid[0].nRow*Design->nCol);
 
     /* Create the file. */
@@ -2525,21 +2328,19 @@ void readSpDataNc(int iteration)
                             if(saiMask & SAI_PASS_LCP) Design->nSpPassLcp[iSoOp]++;
                             if(saiMask & SAI_KAPPA_GT_M1) Design->nSpKappa[iSoOp]++;
 
-                            // LHCP product: SoOp bit in the observation window of the point
-                            if(saiMask & SAI_PASS_LCP){
-                                iWindow = Design->accessSec[iSp] / Design->timeWindow;
-                                if(iWindow >= 0 && iWindow < Design->nWindow)
-                                    Design->obsFreqL[(iWindow*Grid[0].nRow + iRow)*Design->nCol + iCol] |= 1<<(iSoOp);
-                            }
+                            // SoOp bit in the observation window of the point (points after the
+                            // last full window are not used)
+                            iWindow = Design->accessSec[iSp] / Design->timeWindow;
 
-                            // Sort data into a grid: the usable observation is the H&V product
+                            // LHCP product
+                            if((saiMask & SAI_PASS_LCP) && iWindow >= 0 && iWindow < Design->nWindow)
+                                Design->obsFreqL[(iWindow*Grid[0].nRow + iRow)*Design->nCol + iCol] |= 1<<(iSoOp);
+
+                            // H&V product: the usable observation
                             if((saiMask & SAI_PASS_HV) == SAI_PASS_HV){
                                 Design->nSpValid[iSoOp]++;
-                                Design->griddata[iSoOp][iRow][iCol][Design->griddataCnt[iSoOp][iRow][iCol]++] = Design->accessSec[iSp];
-                                if(Design->griddataCnt[iSoOp][iRow][iCol] == MAX_NSP){
-                                    printf("Error: nSp exceeds MAX_NSP, file:%s\n", fullpath);
-                                    exit(1);
-                                }
+                                if(iWindow >= 0 && iWindow < Design->nWindow)
+                                    Design->obsFreq[(iWindow*Grid[0].nRow + iRow)*Design->nCol + iCol] |= 1<<(iSoOp);
                             }
                             else{
                                 Design->nSpInvalid[iSoOp]++;
@@ -2642,48 +2443,6 @@ void deleteSpDataNc(void)
         if((retval = remove(fullpath)))
             ERRNO(retval);
     }
-}
-
-void sortGriddata(void)
-{
-    int iRow, iCol, iSoOp, i, j, nSp, temp;
-
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                nSp = Design->griddataCnt[iSoOp][iRow][iCol];
-                // Sort in ascending order    
-                for(i=0; i<nSp; ++i){
-                    for(j=i+1; j<nSp; ++j){
-                        if (Design->griddata[iSoOp][iRow][iCol][i] > Design->griddata[iSoOp][iRow][iCol][j]) {
-                            temp = Design->griddata[iSoOp][iRow][iCol][i];
-                            Design->griddata[iSoOp][iRow][iCol][i] = Design->griddata[iSoOp][iRow][iCol][j];
-                            Design->griddata[iSoOp][iRow][iCol][j] = temp;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-void freeGriddata(void)
-{
-    int iRow, iCol, iSoOp;
-
-    for(iSoOp=0; iSoOp<NSoOp; iSoOp++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                free(Design->griddata[iSoOp][iRow][iCol]);
-            }
-            free(Design->griddata[iSoOp][iRow]);
-            free(Design->griddataCnt[iSoOp][iRow]);
-        }
-        free(Design->griddata[iSoOp]);
-        free(Design->griddataCnt[iSoOp]);
-    }
-    free(Design->griddata);
-    free(Design->griddataCnt);
 }
 
 void update_design(int taskID)
@@ -3928,15 +3687,6 @@ void performAnalyzer(int taskID)
         printf("Task %d >> (%d/%d) Importing specular points data into a grid...\n", taskID, i+1, Design->gridDivisor);
         readSpDataNc(i);
         printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
-        printf("Task %d >> (%d/%d) Sorting data in each cell...\n", taskID, i+1, Design->gridDivisor);
-        sortGriddata();
-        printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
-        printf("Task %d >> (%d/%d) Calculating revisit time...\n", taskID, i+1, Design->gridDivisor);
-        writeRevisitTimeNc();
-        printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
-        printf("Task %d >> (%d/%d) Writing access times...\n", taskID, i+1, Design->gridDivisor);
-        writeAccessTimeNc();
-        printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
         printf("Task %d >> (%d/%d) Writing observable frequency combinations...\n", taskID, i+1, Design->gridDivisor);
         writeObsFreqNc(i);
         printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
@@ -3947,7 +3697,6 @@ void performAnalyzer(int taskID)
     printf("Task %d >> Closing the file...\n", taskID);
     closePerformNc();
     printf("Task %d >> Success!\n", taskID);
-    //freeGriddata();   
     //printf("Task %d >> Store the specular points data files... ", taskID); fflush(stdout);
     //storeSpDataNc();
     //deleteSpDataNc();

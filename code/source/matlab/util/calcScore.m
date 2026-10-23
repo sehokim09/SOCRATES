@@ -64,16 +64,14 @@ function calcScore(projName, DesignParamsObj, fom)
     D = reshape([DesignParamsObj.perform.revisitTime.score.domain], 2, []);
     score.revisitTimeWeightedSum = 0;
     switch DesignParamsObj.perform.revisitTime.type
-        case '50th Percentile'
-            revisitTime = fom.revisitTime50th;
-        case '90th Percentile'
-            revisitTime = fom.revisitTime90th;
-        case '95th Percentile'
-            revisitTime = fom.revisitTime95th;
-        case '98th Percentile'
-            revisitTime = fom.revisitTime98th;
-        case 'Mean'
-            revisitTime = fom.revisitTimeMean;
+        case '1T global'
+            revisitTime = fom.SRT1T;
+        case '2T global'
+            revisitTime = fom.SRT2T;
+        otherwise
+            error('calcScore:revisitType', ...
+                ['Revisit-time type "%s" is no longer computed. Set it to ''1T global'' ', ...
+                 'or ''2T global'' (SRT over 12- or 24-hour windows).'], DesignParamsObj.perform.revisitTime.type);
     end
     for iTxComb = 1 : DesignParamsObj.nTxComb
         score.revisitTime(:,iTxComb) = penaltyWymoreSSF9(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),revisitTime(:,iTxComb));
@@ -111,9 +109,9 @@ function calcScore(projName, DesignParamsObj, fom)
     score.MTCWeightedSum = 0;
     switch DesignParamsObj.perform.MTC.type
         case '1T global'
-            MTC = fom.MTC1Tglobal;
+            MTC = fom.MRT1T;
         case '2T global'
-            MTC = fom.MTC2Tglobal;
+            MTC = fom.MRT2T;
     end
     for iFreqComb = 1 : DesignParamsObj.nFreqComb
         score.MTC(:,iFreqComb) = penaltyWymoreSSF9(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MTC(:,iFreqComb));

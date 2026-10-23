@@ -33,7 +33,7 @@ FALSE                     ! Real-time Transmitter Propagation
 15.000000               ! Minimum Reflected RCG for GPS [1E-27m^-4]
 0.000000               ! Minimum Direct RCG [dB]
 3.000000               ! Maximum RCG Difference [dB]
-4                     ! Longitudinal Grid Divisor
+1                     ! Longitudinal Grid Divisor
 /local/scratch/a/kim3002/ASR1115/ ! Large File Storage Root Directory
 =========================== Data to Report =============================
 FALSE                     ! Individual Receiver Data (per Inp_Report.txt)
