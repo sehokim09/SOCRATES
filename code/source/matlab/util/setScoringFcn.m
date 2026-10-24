@@ -41,36 +41,30 @@ function DesignParamsObj = setScoringFcn(DesignParamsObj, fom)
     DesignParamsObj.cost.upper = max(cost);
     DesignParamsObj.cost.domain = [DesignParamsObj.cost.lower, DesignParamsObj.cost.upper];
     
-    % Max coverage
+    % Single-frequency Spatial Coverage
     for iTxComb = 1 : DesignParamsObj.nTxComb
-        DesignParamsObj.perform.maxCoverage.score(iTxComb).weight = 1/DesignParamsObj.nTxComb;
-        DesignParamsObj.perform.maxCoverage.score(iTxComb).lower = min(fom.coverageMax(:,iTxComb));
-        DesignParamsObj.perform.maxCoverage.score(iTxComb).baseline = mean(fom.coverageMax(:,iTxComb));
-        DesignParamsObj.perform.maxCoverage.score(iTxComb).upper = max(fom.coverageMax(:,iTxComb));
-        DesignParamsObj.perform.maxCoverage.score(iTxComb).domain = ...
-            [DesignParamsObj.perform.maxCoverage.score(iTxComb).lower, DesignParamsObj.perform.maxCoverage.score(iTxComb).upper];
+        DesignParamsObj.perform.SSC.score(iTxComb).weight = 1/DesignParamsObj.nTxComb;
+        DesignParamsObj.perform.SSC.score(iTxComb).lower = min(fom.SSC(:,iTxComb));
+        DesignParamsObj.perform.SSC.score(iTxComb).baseline = mean(fom.SSC(:,iTxComb));
+        DesignParamsObj.perform.SSC.score(iTxComb).upper = max(fom.SSC(:,iTxComb));
+        DesignParamsObj.perform.SSC.score(iTxComb).domain = ...
+            [DesignParamsObj.perform.SSC.score(iTxComb).lower, DesignParamsObj.perform.SSC.score(iTxComb).upper];
     end
     
-    % Revisit time
-    switch DesignParamsObj.perform.revisitTime.type
-        case '50th Percentile'
-            revisitTime = fom.revisitTime50th;
-        case '90th Percentile'
-            revisitTime = fom.revisitTime90th;
-        case '95th Percentile'
-            revisitTime = fom.revisitTime95th;
-        case '98th Percentile'
-            revisitTime = fom.revisitTime98th;
-        case 'Mean'
-            revisitTime = fom.revisitTimeMean;
+    % Single-frequency Revisit Time
+    switch DesignParamsObj.perform.SRT.type
+        case '1T global'
+            SRT = fom.SRT1T;
+        case '2T global'
+            SRT = fom.SRT2T;
     end
     for iTxComb = 1 : DesignParamsObj.nTxComb
-        DesignParamsObj.perform.revisitTime.score(iTxComb).weight = 1/DesignParamsObj.nTxComb;
-        DesignParamsObj.perform.revisitTime.score(iTxComb).lower = min(revisitTime(:,iTxComb));
-        DesignParamsObj.perform.revisitTime.score(iTxComb).baseline = mean(revisitTime(:,iTxComb));
-        DesignParamsObj.perform.revisitTime.score(iTxComb).upper = max(revisitTime(:,iTxComb));
-        DesignParamsObj.perform.revisitTime.score(iTxComb).domain = ...
-            [DesignParamsObj.perform.revisitTime.score(iTxComb).lower, DesignParamsObj.perform.revisitTime.score(iTxComb).upper];
+        DesignParamsObj.perform.SRT.score(iTxComb).weight = 1/DesignParamsObj.nTxComb;
+        DesignParamsObj.perform.SRT.score(iTxComb).lower = min(SRT(:,iTxComb));
+        DesignParamsObj.perform.SRT.score(iTxComb).baseline = mean(SRT(:,iTxComb));
+        DesignParamsObj.perform.SRT.score(iTxComb).upper = max(SRT(:,iTxComb));
+        DesignParamsObj.perform.SRT.score(iTxComb).domain = ...
+            [DesignParamsObj.perform.SRT.score(iTxComb).lower, DesignParamsObj.perform.SRT.score(iTxComb).upper];
     end
     
     % Multi-frequency Spatial Coverage
@@ -93,19 +87,19 @@ function DesignParamsObj = setScoringFcn(DesignParamsObj, fom)
             [DesignParamsObj.perform.MSC.score(iFreqComb).lower, DesignParamsObj.perform.MSC.score(iFreqComb).upper];
     end
 
-    % Multi-frequency Temporal Coverage
-    switch DesignParamsObj.perform.MTC.type
+    % Multi-frequency Revisit Time
+    switch DesignParamsObj.perform.MRT.type
         case '1T global'
-            MTC = fom.MTC1Tglobal;
+            MRT = fom.MRT1T;
         case '2T global'
-            MTC = fom.MTC2Tglobal;
+            MRT = fom.MRT2T;
     end
     for iFreqComb = 1 : DesignParamsObj.nFreqComb
-        DesignParamsObj.perform.MTC.score(iFreqComb).weight = 1/DesignParamsObj.nFreqComb;
-        DesignParamsObj.perform.MTC.score(iFreqComb).lower = min(MTC(:,iFreqComb));
-        DesignParamsObj.perform.MTC.score(iFreqComb).baseline = mean(MTC(:,iFreqComb));
-        DesignParamsObj.perform.MTC.score(iFreqComb).upper = max(MTC(:,iFreqComb));
-        DesignParamsObj.perform.MTC.score(iFreqComb).domain = ...
-            [DesignParamsObj.perform.MTC.score(iFreqComb).lower, DesignParamsObj.perform.MTC.score(iFreqComb).upper];
+        DesignParamsObj.perform.MRT.score(iFreqComb).weight = 1/DesignParamsObj.nFreqComb;
+        DesignParamsObj.perform.MRT.score(iFreqComb).lower = min(MRT(:,iFreqComb));
+        DesignParamsObj.perform.MRT.score(iFreqComb).baseline = mean(MRT(:,iFreqComb));
+        DesignParamsObj.perform.MRT.score(iFreqComb).upper = max(MRT(:,iFreqComb));
+        DesignParamsObj.perform.MRT.score(iFreqComb).domain = ...
+            [DesignParamsObj.perform.MRT.score(iFreqComb).lower, DesignParamsObj.perform.MRT.score(iFreqComb).upper];
     end
 end

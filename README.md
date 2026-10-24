@@ -1,6 +1,6 @@
 # SOCRATES
 
-<img align="right" width="300" height="300" src="https://github.itap.purdue.edu/RadioNavigationLab/SOCRATES/blob/master/code/source/matlab/icon/SOCRATES-logo.png">
+<img align="right" width="300" height="300" src="https://github.com/sehokim09/SOCRATES/tree/feature/sai-manuscript-model/code/source/matlab/icon/SOCRATES-logo.png">
 SOCRATES (Signals of Opportunity Constellation and Remote sensing Analysis Tool for Earth Science) is an end-to-end mission simulator for multiple Signals of Opportunity (multi-SoOp) for land remote sensing. This tool offers a comprehensive analysis environment to explore from a high-level mission design to scientific measurements. The current release of SOCRATES boasts the following capabilities:
 
   - Satellite- and tower-based observation of soil moisture using multi-SoOp.

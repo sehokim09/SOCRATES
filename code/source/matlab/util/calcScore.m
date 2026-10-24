@@ -43,39 +43,38 @@ function calcScore(projName, DesignParamsObj, fom)
     end
     score.cost = penaltyWymoreSSF9(L,B,U,S,D,cost);
     
-    % Max coverage
-    L = [DesignParamsObj.perform.maxCoverage.score.lower];
-    B = [DesignParamsObj.perform.maxCoverage.score.baseline];
-    U = [DesignParamsObj.perform.maxCoverage.score.upper];
+    % Single-frequency Spatial Coverage
+    L = [DesignParamsObj.perform.SSC.score.lower];
+    B = [DesignParamsObj.perform.SSC.score.baseline];
+    U = [DesignParamsObj.perform.SSC.score.upper];
     S = 1./(B-L);
-    D = reshape([DesignParamsObj.perform.maxCoverage.score.domain], 2, []);
-    score.coverageMaxWeightedSum = 0;
+    D = reshape([DesignParamsObj.perform.SSC.score.domain], 2, []);
+    score.SSCWeightedSum = 0;
     for iTxComb = 1 : DesignParamsObj.nTxComb
-        score.coverageMax(:,iTxComb) = penaltyWymoreSSF3(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),fom.coverageMax(:,iTxComb));
-        score.coverageMaxWeightedSum = score.coverageMaxWeightedSum + DesignParamsObj.perform.maxCoverage.score(iTxComb).weight*score.coverageMax(:,iTxComb);
+        score.SSC(:,iTxComb) = penaltyWymoreSSF3(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),fom.SSC(:,iTxComb));
+        score.SSCWeightedSum = score.SSCWeightedSum + DesignParamsObj.perform.SSC.score(iTxComb).weight*score.SSC(:,iTxComb);
     end
 
-    
-    % Revisit time
-    L = [DesignParamsObj.perform.revisitTime.score.lower];
-    B = [DesignParamsObj.perform.revisitTime.score.baseline];
-    U = [DesignParamsObj.perform.revisitTime.score.upper];
+    % Single-frequency Revisit Time
+    L = [DesignParamsObj.perform.SRT.score.lower];
+    B = [DesignParamsObj.perform.SRT.score.baseline];
+    U = [DesignParamsObj.perform.SRT.score.upper];
     S = 1./(B-L);
-    D = reshape([DesignParamsObj.perform.revisitTime.score.domain], 2, []);
-    score.revisitTimeWeightedSum = 0;
-    switch DesignParamsObj.perform.revisitTime.type
+    D = reshape([DesignParamsObj.perform.SRT.score.domain], 2, []);
+    score.SRTWeightedSum = 0;
+    switch DesignParamsObj.perform.SRT.type
         case '1T global'
-            revisitTime = fom.SRT1T;
+            SRT = fom.SRT1T;
         case '2T global'
-            revisitTime = fom.SRT2T;
+            SRT = fom.SRT2T;
         otherwise
             error('calcScore:revisitType', ...
                 ['Revisit-time type "%s" is no longer computed. Set it to ''1T global'' ', ...
-                 'or ''2T global'' (SRT over 12- or 24-hour windows).'], DesignParamsObj.perform.revisitTime.type);
+                 'or ''2T global'' (SRT over 12- or 24-hour windows).'], DesignParamsObj.perform.SRT.type);
     end
     for iTxComb = 1 : DesignParamsObj.nTxComb
-        score.revisitTime(:,iTxComb) = penaltyWymoreSSF9(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),revisitTime(:,iTxComb));
-        score.revisitTimeWeightedSum = score.revisitTimeWeightedSum + DesignParamsObj.perform.revisitTime.score(iTxComb).weight*score.revisitTime(:,iTxComb);
+        score.SRT(:,iTxComb) = penaltyWymoreSSF9(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),SRT(:,iTxComb));
+        score.SRTWeightedSum = score.SRTWeightedSum + DesignParamsObj.perform.SRT.score(iTxComb).weight*score.SRT(:,iTxComb);
     end
     
     % Multi-frequency Spatial Coverage
@@ -101,28 +100,28 @@ function calcScore(projName, DesignParamsObj, fom)
     end
     
     % Multi-frequency Temporal Coverage
-    L = [DesignParamsObj.perform.MTC.score.lower];
-    B = [DesignParamsObj.perform.MTC.score.baseline];
-    U = [DesignParamsObj.perform.MTC.score.upper];
+    L = [DesignParamsObj.perform.MRT.score.lower];
+    B = [DesignParamsObj.perform.MRT.score.baseline];
+    U = [DesignParamsObj.perform.MRT.score.upper];
     S = 1./(B-L);
-    D = reshape([DesignParamsObj.perform.MTC.score.domain], 2, []);
-    score.MTCWeightedSum = 0;
-    switch DesignParamsObj.perform.MTC.type
+    D = reshape([DesignParamsObj.perform.MRT.score.domain], 2, []);
+    score.MRTWeightedSum = 0;
+    switch DesignParamsObj.perform.MRT.type
         case '1T global'
-            MTC = fom.MRT1T;
+            MRT = fom.MRT1T;
         case '2T global'
-            MTC = fom.MRT2T;
+            MRT = fom.MRT2T;
     end
     for iFreqComb = 1 : DesignParamsObj.nFreqComb
-        score.MTC(:,iFreqComb) = penaltyWymoreSSF9(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MTC(:,iFreqComb));
-        score.MTCWeightedSum = score.MTCWeightedSum + DesignParamsObj.perform.MTC.score(iFreqComb).weight*score.MTC(:,iFreqComb);
+        score.MRT(:,iFreqComb) = penaltyWymoreSSF9(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MRT(:,iFreqComb));
+        score.MRTWeightedSum = score.MRTWeightedSum + DesignParamsObj.perform.MRT.score(iFreqComb).weight*score.MRT(:,iFreqComb);
     end
 
     % Linear combination
-    score.perform =  DesignParamsObj.perform.maxCoverage.weight*score.coverageMaxWeightedSum ...
-                       + DesignParamsObj.perform.revisitTime.weight*score.revisitTimeWeightedSum ...
+    score.perform =  DesignParamsObj.perform.SSC.weight*score.SSCWeightedSum ...
+                       + DesignParamsObj.perform.SRT.weight*score.SRTWeightedSum ...
                        + DesignParamsObj.perform.MSC.weight*score.MSCWeightedSum ...
-                       + DesignParamsObj.perform.MTC.weight*score.MTCWeightedSum;
+                       + DesignParamsObj.perform.MRT.weight*score.MRTWeightedSum;
     score.final = DesignParamsObj.cost.weight*score.cost + DesignParamsObj.perform.weight*score.perform;
     
     % Sorting
@@ -130,20 +129,20 @@ function calcScore(projName, DesignParamsObj, fom)
     name = fom.consName(idx);
     cost = score.cost(idx);
     perform = score.perform(idx);
-    coverageMax = score.coverageMax(idx,:);
-    coverageMaxWeightedSum = score.coverageMaxWeightedSum(idx);
-    revisitTime = score.revisitTime(idx,:);
-    revisitTimeWeightedSum = score.revisitTimeWeightedSum(idx);
+    SSC = score.SSC(idx,:);
+    SSCWeightedSum = score.SSCWeightedSum(idx);
+    SRT = score.SRT(idx,:);
+    SRTWeightedSum = score.SRTWeightedSum(idx);
     MSC = score.MSC(idx);
     MSCWeightedSum = score.MSCWeightedSum(idx);
-    MTC = score.MTC(idx);
-    MTCWeightedSum = score.MTCWeightedSum(idx);
+    MRT = score.MRT(idx);
+    MRTWeightedSum = score.MRTWeightedSum(idx);
     
     % Save
     dir_out = fullfile('sim', projName, 'out');
     filename_out = sprintf("score_%s.mat", projName);
     save(fullfile(dir_out, filename_out), 'name', 'final', 'idx', 'cost', 'perform', ...
-        'coverageMax', 'coverageMaxWeightedSum', 'revisitTime', 'revisitTimeWeightedSum', ...
+        'SSC', 'SSCWeightedSum', 'SRT', 'SRTWeightedSum', ...
         'MSC', 'MSCWeightedSum', ...
-        'MTC', 'MTCWeightedSum');
+        'MRT', 'MRTWeightedSum');
 end

@@ -189,10 +189,16 @@ function DesignParamsObj = readInpDesign(projPath)
         % (USER_DEFINED) Receiver Antenna Pattern File Names
         line = fgetl(fileID);
         temp = sscanf(line, "%s %*[\n]");
-        DesignParamsObj.TxComb(iTxComb).antPatFilepath.Co = fullfile(antPath, temp);
+        DesignParamsObj.TxComb(iTxComb).antPatFilepath.XX = fullfile(antPath, temp);
         line = fgetl(fileID);
         temp = sscanf(line, "%s %*[\n]");
-        DesignParamsObj.TxComb(iTxComb).antPatFilepath.X = fullfile(antPath, temp);
+        DesignParamsObj.TxComb(iTxComb).antPatFilepath.XY = fullfile(antPath, temp);
+        line = fgetl(fileID);
+        temp = sscanf(line, "%s %*[\n]");
+        DesignParamsObj.TxComb(iTxComb).antPatFilepath.YX = fullfile(antPath, temp);
+        line = fgetl(fileID);
+        temp = sscanf(line, "%s %*[\n]");
+        DesignParamsObj.TxComb(iTxComb).antPatFilepath.YY = fullfile(antPath, temp);
     end
 
     fclose(fileID);
@@ -206,11 +212,11 @@ function DesignParamsObj = readInpDesign(projPath)
     DesignParamsObj.freqComb.ID = pow2(DesignParamsObj.freqComb.nTxComb)-1;
 
     % Initialize scoring function parameters
-    DesignParamsObj.perform.maxCoverage.score(1).weight = 1 / DesignParamsObj.nTxComb;
-    DesignParamsObj.perform.revisitTime.score(1).weight = 1 / DesignParamsObj.nTxComb;
+    DesignParamsObj.perform.SSC.score(1).weight = 1 / DesignParamsObj.nTxComb;
+    DesignParamsObj.perform.SRT.score(1).weight = 1 / DesignParamsObj.nTxComb;
     for iTxComb = 2 : DesignParamsObj.nTxComb
-        DesignParamsObj.perform.maxCoverage.score(iTxComb) = DesignParamsObj.perform.maxCoverage.score(1);
-        DesignParamsObj.perform.revisitTime.score(iTxComb) = DesignParamsObj.perform.revisitTime.score(1);
+        DesignParamsObj.perform.SSC.score(iTxComb) = DesignParamsObj.perform.SSC.score(1);
+        DesignParamsObj.perform.SRT.score(iTxComb) = DesignParamsObj.perform.SRT.score(1);
     end
     DesignParamsObj.perform.MSC.score(1).weight = 1 / DesignParamsObj.nFreqComb;
     DesignParamsObj.perform.MTC.score(1).weight = 1 / DesignParamsObj.nFreqComb;
