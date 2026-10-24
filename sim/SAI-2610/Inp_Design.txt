@@ -1,0 +1,87 @@
+<<<<<<<<<<<<<<<  Constellation Design Description File  >>>>>>>>>>>>>>>>
+WALKER                    ! Constellation Type (WALKER, HYBRID)
+========================= Design Variables =============================
+6                         ! Number of # Receiver Variable
+6, 12, 18, 24, 30, 36    ! # Receiver
+------------------------------------------------------------------------
+3                         ! Number of Altitude Variable
+500, 600, 700        ! Altitude [km]
+------------------------------------------------------------------------
+7                         ! Number of Inclination Variable
+40, 50, 60, 70, 80, 90, SSO        ! Inclination [deg]
+------------------------------------------------------------------------
+3                         ! Number of # Orbital Plane Variable
+1, 2, 3        ! # Orbital Plane
+======================= Hybrid Design Variables ========================
+Hybrid-1                  ! Constellation Name
+3        ! # Orbital Plane
+------------------------------- Plane 1 -------------------------------
+8                        ! # Receiver
+500.000000                     ! Altitude [km]
+50                     ! Inclination [deg]
+------------------------------- Plane 2 -------------------------------
+8                        ! # Receiver
+500.000000                     ! Altitude [km]
+50                     ! Inclination [deg]
+------------------------------- Plane 3 -------------------------------
+8                        ! # Receiver
+500.000000                     ! Altitude [km]
+SSO                     ! Inclination [deg]
+========================= Other Parameters ===========================
+FALSE                     ! Real-time Transmitter Propagation
+12.000000               ! Observation Time Window [hour]
+1                     ! Longitudinal Grid Divisor
+/local/scratch/a/kim3002/ASR1115/ ! Large File Storage Root Directory
+=========================== Data to Report =============================
+FALSE                     ! Individual Receiver Data (per Inp_Report.txt)
+==================== Coverage Analysis Parameter =======================
+6                         ! Number of SoOp (Tx Combinations)
+------------------------- SoOp 1 ---------------------------------------
+ORBCOMM                   ! SoOp Name
+1                         ! Number of Tx Systems
+ORBCOMM                   ! Tx 1 Name (From Inp_Inorbit.txt)
+------------------------- SoOp 2 ---------------------------------------
+UFO                   ! SoOp Name
+1                         ! Number of Tx Systems
+MUOS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+------------------------- SoOp 3 ---------------------------------------
+MUOS                   ! SoOp Name
+1                         ! Number of Tx Systems
+MUOS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+------------------------- SoOp 4 ---------------------------------------
+GPS                   ! SoOp Name
+1                         ! Number of Tx Systems
+GPS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+------------------------- SoOp 5 ---------------------------------------
+GE                   ! SoOp Name
+2                         ! Number of Tx Systems
+GPS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+Galileo                   ! Tx 2 Name (From Inp_Inorbit.txt)
+------------------------- SoOp 6 ---------------------------------------
+GENB                   ! SoOp Name
+4                         ! Number of Tx Systems
+GPS                   ! Tx 1 Name (From Inp_Inorbit.txt)
+Galileo                   ! Tx 2 Name (From Inp_Inorbit.txt)
+GLONASS                   ! Tx 3 Name (From Inp_Inorbit.txt)
+Beidou                   ! Tx 4 Name (From Inp_Inorbit.txt)
+============== SAI Observation Model (export_socrates_inputs.m) ==============
+solved_payload.m 2026-10-21 14:07          ! Source and timestamp
+0.80000000000000004                        ! gamma
+1                                          ! W_D
+0.051974891880158754                       ! eta_HV (dwell-averaged)
+0.029550129648325252                       ! eta_L  (dwell-averaged)
+3.0099999999999998                         ! Direct-arm loss on linear ports [dB]
+reflectivity_cdf_X.txt                     ! CDF file, port X (V)
+reflectivity_cdf_Y.txt                     ! CDF file, port Y (H)
+reflectivity_cdf_L.txt                     ! CDF file, port L (LHCP)
+sai/                                       ! Pattern subdirectory of ./ant_pat/
+SAI2610                                    ! Run tag: output file <constellation>_perform_<tag>.nc
+7                                          ! Number of transmitters
+! name  type  cdfCol  patTag  Glin_dBi  S0  Nc  TI_s  Nincoh  spotbeam
+ORBCOMM  SAI   1 CROSSDIPOLE_137  2.8666999999999998 1535448438593029.8 45 0.00089999999999999998 3488 0
+UFO      SAI   2 CROSSDIPOLE_255  3.4445999999999999 33221889385523176 25 0.00050000000000000001 5986 0
+MUOS     SAI   3 CROSSDIPOLE_370  3.8915000000000002 925236199557429.75 2500 0.00050000000000000001 6372 1
+GPS      GNSS  4 PATCH_1575       6.9067999999999996 11448409497451.826 2046 0.001 3333 0
+Galileo  GNSS  4 PATCH_1575       6.9067999999999996 19282024691324.395 2046 0.001 3333 0
+GLONASS  GNSS  4 PATCH_1575       6.9067999999999996 5897953237859.3359 2046 0.001 3333 0
+Beidou   GNSS  4 PATCH_1575       6.9067999999999996 11356468749896.357 2046 0.001 3333 0

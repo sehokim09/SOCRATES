@@ -87,7 +87,7 @@ BUSOBJ = $(OBJ)comm.o
 
 RETOBJ = $(OBJ)retrieval.o
 
-DEVOBJ = $(OBJ)design.o
+DEVOBJ = $(OBJ)design.o $(OBJ)sai.o
 	
 42OBJ = $(OBJ42)42main.o $(OBJ42)42exec.o $(OBJ42)42actuators.o $(OBJ42)42cmd.o \
 $(OBJ42)42dynamics.o $(OBJ42)42environs.o $(OBJ42)42ephem.o $(OBJ42)42fsw.o \
@@ -108,6 +108,10 @@ CFLAGS = -Wall -Wshadow -Wno-deprecated -g $(GLINC) $(CINC) -I $(INC) -I $(SRC) 
 
 SOCRATES : $(SOOPOBJ) $(BUSOBJ) $(DEVOBJ) $(RETOBJ) $(42OBJ) $(KIT42OBJ) $(SGP4OBJ)
 	   $(CC) $(LFLAGS) -o $(EXENAME) $(SOOPOBJ) $(DEVOBJ) $(RETOBJ) $(BUSOBJ) $(42OBJ) $(KIT42OBJ) $(SGP4OBJ) $(LIBS)
+
+# Standalone checker of the SAI observation model (doc/SAI_model_validation.md)
+sai_check : $(SRC)sai_check.c $(SRC)sai.c $(INC)sai.h
+	$(CC) $(CFLAGS) -Wextra $(LFLAGS) -o sai_check $(SRC)sai_check.c $(SRC)sai.c $(LIBS)
 
 ####################  Rules to compile objects  ###########################
 
@@ -150,8 +154,11 @@ $(OBJ)retrieval.o        : $(SRC)retrieval.c $(INC)socrates.h $(INC42)42.h
 $(OBJ)comm.o             : $(SRC)comm.c $(INC)socrates.h $(INC42)42.h
 	$(CC) $(CFLAGS) -c $(SRC)comm.c -o $(OBJ)comm.o
 
-$(OBJ)design.o           : $(SRC)design.c $(INC)socrates.h $(INC42)42.h
+$(OBJ)design.o           : $(SRC)design.c $(INC)socrates.h $(INC)sai.h $(INC42)42.h
 	$(CC) $(CFLAGS) -c $(SRC)design.c -o $(OBJ)design.o
+
+$(OBJ)sai.o              : $(SRC)sai.c $(INC)sai.h
+	$(CC) $(CFLAGS) -Wextra -c $(SRC)sai.c -o $(OBJ)sai.o
 
 $(OBJ42)42main.o          : $(SRC42)42main.c 
 	$(CC) $(CFLAGS) -c $(SRC42)42main.c -o $(OBJ42)42main.o  
@@ -264,7 +271,7 @@ ifeq ($(PLATFORM),_WIN32)
 else ifeq ($(PLATFORM),_WIN64)
 	del .\$(OBJ)\*.o .\$(OBJ42)\*.o .\$(EXENAME)
 else
-	rm -f $(OBJ)*.o $(OBJ42)*.o $(SGP4DIR)*.o
+	rm -f $(OBJ)*.o $(OBJ42)*.o $(SGP4DIR)*.o sai_check
 endif
 
 

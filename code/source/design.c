@@ -175,7 +175,7 @@ void reallocDesign(void)
 
 void freeDesign(void)
 {
-    int iRx;
+    int iRx, iSoOp;
 
     for(iRx=0; iRx<Design->nRx; iRx++){
         free(Design->ncCnt[iRx]);
@@ -201,6 +201,9 @@ void freeDesign(void)
     free(Design->ncRangeTRID);
     free(Design->ncRangeTSID);
     free(Design->ncRangeSRID);
+    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++)
+        free(Design->SoOp[iSoOp].saiTx);
+    saiFree(&Design->sai);
 }
 
 void freeRigidDyn(struct SCType *S)
@@ -729,13 +732,6 @@ void loadDesign(void)
   	// .. Observation Time Window .. //
     fscanf(infile,"%ld %[^\n] %[\n]",&Design->timeWindow,junk,&newline);
     Design->timeWindow *= 3600; // hour to sec
-  	// .. Minimum Reflected RCG .. //
-    fscanf(infile,"%lf %[^\n] %[\n]",&Design->minReflectRCG,junk,&newline);
-    Design->minReflectRCG *= 1E-27;
-  	// .. Minimum Direct RCG .. //
-    fscanf(infile,"%lf %[^\n] %[\n]",&Design->minDirectRCG,junk,&newline);
-  	// .. Maximum RCG Difference .. //
-    fscanf(infile,"%lf %[^\n] %[\n]",&Design->maxRCGdiff,junk,&newline);
     // .. Longitudinal Grid Divisior .. //
     fscanf(infile,"%d %[^\n] %[\n]",&Design->gridDivisor,junk,&newline);
     // .. Large file storage root directory .. //
@@ -776,19 +772,6 @@ void loadDesign(void)
             }  
     	    fscanf(infile,"%s %[^\n] %[\n]",Design->SoOp[iSoOp].TxName[iTx],junk,&newline);
         }
-        // Receive Antenna Gain, Polarization
-		fscanf(infile,"%lf %c %[^\n] %[\n]", &Design->SoOp[iSoOp].G_Rx, &Design->SoOp[iSoOp].polRx, junk,&newline);
-        Design->SoOp[iSoOp].G_Rx_num = pow(10, Design->SoOp[iSoOp].G_Rx/10.0);
-		// Receive Antenna Pattern
-		fscanf(infile,"%s %[^\n] %[\n]",response,junk,&newline);
-		Design->SoOp[iSoOp].antTag = decodeStr(response);
-		// (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
-		fscanf(infile, "%lf %lf %lf %lf %[^\n] %[\n]", &Design->SoOp[iSoOp].hpbw, &Design->SoOp[iSoOp].SLL, &Design->SoOp[iSoOp].XPL, &Design->SoOp[iSoOp].antPatRes, junk, &newline);
-		// (USER_DEFINED) File Name for Antenna Pattern
-		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[0],junk,&newline);
-		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[1],junk,&newline);
-		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[2],junk,&newline);
-		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[3],junk,&newline);
     }
 	fclose(infile);
 }
@@ -1180,75 +1163,38 @@ void initConsPropagator(void)
 
 void initConsPerform(void)
 {
-    int iSoOp, iRow, iCol;
+    int iSoOp, iRow, iCol, taskID;
+    long iTx;
     uint16_t rowSt, colSt;
     struct DesignSoOpType *DS;
-    char antFileName[40];
+    char saiPath[200];
 
     Design->nCol = Grid[0].nCol / Design->gridDivisor;
 
-    // .. Memory allocation  .. //
-    Design->griddata = (int ****) calloc(Design->nSoOp, sizeof(int ***));
-    Design->griddataCnt = (int ***) calloc(Design->nSoOp, sizeof(int **));
+    // .. SAI observation model: the SAI section at the end of Inp_Design.txt .. //
+    sprintf(saiPath, "%sInp_Design.txt", SimPath);
+    if(saiLoad(saiPath, AntPath, &Design->sai) != 0){
+        printf("Cannot load the SAI observation model %s.  Bailing out!\n", saiPath);
+        exit(1);
+    }
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        Design->griddata[iSoOp] = (int ***) calloc(Grid[0].nRow, sizeof(int **));
-        Design->griddataCnt[iSoOp] = (int **) calloc(Grid[0].nRow, sizeof(int *));
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            Design->griddata[iSoOp][iRow] = (int **) calloc(Design->nCol, sizeof(int *));
-            Design->griddataCnt[iSoOp][iRow] = (int *) calloc(Design->nCol, sizeof(int));
-            if (Design->griddataCnt[iSoOp][iRow] == NULL) {
-                printf("Design->griddataCnt[iRow] calloc returned null pointer.  Bailing out!\n");
+        DS = &Design->SoOp[iSoOp];
+        DS->saiTx = (const SaiTx **) calloc(DS->nTx, sizeof(const SaiTx *));
+        if (DS->saiTx == NULL) {
+            printf("DS->saiTx calloc returned null pointer.  Bailing out!\n");
+            exit(1);
+        }
+        for(iTx=0; iTx<DS->nTx; iTx++){
+            DS->saiTx[iTx] = saiFindTx(&Design->sai, DS->name, DS->TxName[iTx]);
+            if(DS->saiTx[iTx] == NULL){
+                printf("SoOp %s (Tx %s) is not in %s.  Bailing out!\n", DS->name, DS->TxName[iTx], saiPath);
                 exit(1);
-            } 
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                Design->griddata[iSoOp][iRow][iCol] = (int *) calloc(MAX_NSP, sizeof(int));
-                if (Design->griddata[iSoOp][iRow][iCol] == NULL) {
-                    printf("Design->griddata[iSoOp][iRow][iCol] calloc returned null pointer.  Bailing out!\n");
-                    exit(1);
-                }
             }
         }
-        // .. Receive Antenna for Analysis .. //
-        DS = &Design->SoOp[iSoOp];
-        if(DS->antTag == USER_DEFINED){
-            DS->antPattern = LoadAntPattern(DS->antFileName, &DS->antPatRes, DS->antPattern);
-            sprintf(antFileName, "UD_%s", DS->name);
-        }
-        else if(DS->antTag == GAUSSIAN){
-            DS->antPattern = LoadAntPatternGG(DS->SLL, DS->XPL, DS->hpbw, DS->antPatRes, DS->antPattern);
-            sprintf(antFileName, "GG_%s", DS->name);
-        }
-        //ReportAntPattern(antFileName, DS->antPatRes, DS->antPattern);
     }
-
-    Design->ncRevisitTimeID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncRevisitTimeID == NULL) {
-        printf("Design->ncRevisitTimeID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
-    Design->ncRevisitRowID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncRevisitRowID == NULL) {
-        printf("Design->ncRevisitRowID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
-    Design->ncRevisitColID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncRevisitColID == NULL) {
-        printf("Design->ncRevisitColID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
-    Design->ncAccessTime1stID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncAccessTime1stID == NULL) {
-        printf("Design->ncAccessTime1stID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-
-    Design->ncAccessTime2ndID = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->ncAccessTime2ndID == NULL) {
-        printf("Design->ncAccessTime2ndID calloc returned null pointer.  Bailing out!\n");
-        exit(1);
+    MPI_Comm_rank(MPI_COMM_WORLD, &taskID);
+    if(taskID == MASTER){
+        printf("SAI observation model: %s, run tag %s\n", Design->sai.source, Design->sai.runTag);
     }
 
     Design->ncNspValidID = (int *) calloc(Design->nSoOp, sizeof(int));
@@ -1263,28 +1209,21 @@ void initConsPerform(void)
         exit(1);
     }
 
-    Design->startpRevisit = (size_t *) calloc(Design->nSoOp, sizeof(size_t));
-    if (Design->startpRevisit == NULL) {
-        printf("Design->startpRevisit calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-        
-    Design->startpAccessTime1st = (size_t *) calloc(Design->nSoOp, sizeof(size_t));
-    if (Design->startpAccessTime1st == NULL) {
-        printf("Design->startpAccessTime1st calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
-        
-    Design->startpAccessTime2nd = (size_t *) calloc(Design->nSoOp, sizeof(size_t));
-    if (Design->startpAccessTime2nd == NULL) {
-        printf("Design->startpAccessTime2nd calloc returned null pointer.  Bailing out!\n");
-        exit(1);
-    }
 
     Design->nWindow = (int) STOPTIME/Design->timeWindow;
-    Design->obsFreq = (int *) calloc(Grid[0].nRow*Design->nCol, sizeof(int));
+    Design->obsFreq = (int *) calloc((size_t) Design->nWindow*Grid[0].nRow*Design->nCol, sizeof(int));
     if (Design->obsFreq == NULL) {
         printf("Design->obsFreq calloc returned null pointer.  Bailing out!\n");
+        exit(1);
+    }
+    Design->obsFreqL = (int *) calloc((size_t) Design->nWindow*Grid[0].nRow*Design->nCol, sizeof(int));
+    if (Design->obsFreqL == NULL) {
+        printf("Design->obsFreqL calloc returned null pointer.  Bailing out!\n");
+        exit(1);
+    }
+    Design->ncSaiCntID = (int *) calloc(Design->nSoOp*SAI_NCNT, sizeof(int));
+    if (Design->ncSaiCntID == NULL) {
+        printf("Design->ncSaiCntID calloc returned null pointer.  Bailing out!\n");
         exit(1);
     }
     Design->nSpValid = (int *) calloc(Design->nSoOp, sizeof(int));
@@ -1295,6 +1234,15 @@ void initConsPerform(void)
     Design->nSpInvalid = (int *) calloc(Design->nSoOp, sizeof(int));
     if (Design->nSpInvalid == NULL) {
         printf("Design->nSpInvalid calloc returned null pointer.  Bailing out!\n");
+        exit(1);
+    }
+    Design->nSpPassX = (int *) calloc(Design->nSoOp, sizeof(int));
+    Design->nSpPassY = (int *) calloc(Design->nSoOp, sizeof(int));
+    Design->nSpPassLcp = (int *) calloc(Design->nSoOp, sizeof(int));
+    Design->nSpKappa = (int *) calloc(Design->nSoOp, sizeof(int));
+    Design->nSpOffGrid = (int *) calloc(Design->nSoOp, sizeof(int));
+    if (Design->nSpPassX == NULL || Design->nSpPassY == NULL || Design->nSpPassLcp == NULL || Design->nSpKappa == NULL || Design->nSpOffGrid == NULL) {
+        printf("Design->nSpPass* calloc returned null pointer.  Bailing out!\n");
         exit(1);
     }
     Design->nCell.total = Grid[0].nRow * Grid[0].nCol;
@@ -1329,8 +1277,6 @@ void initConsPerform(void)
         free(Design->landmask[iRow]);
     }
     free(Design->landmask);
-
-    Design->revisitThreshold = 3600;
 }
 
 /* Electron maximum payload mass (kg) to a circular orbit, interpolated from the
@@ -1536,11 +1482,13 @@ void resetPerformVars(void)
     }
 
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        Design->startpRevisit[iSoOp] = 0;
-        Design->startpAccessTime1st[iSoOp] = 0;
-        Design->startpAccessTime2nd[iSoOp] = 0;
         Design->nSpValid[iSoOp] = 0;
         Design->nSpInvalid[iSoOp] = 0;
+        Design->nSpPassX[iSoOp] = 0;
+        Design->nSpPassY[iSoOp] = 0;
+        Design->nSpPassLcp[iSoOp] = 0;
+        Design->nSpKappa[iSoOp] = 0;
+        Design->nSpOffGrid[iSoOp] = 0;
     }
 }
 
@@ -1631,10 +1579,10 @@ int checkPerformNc(void)
     int flagSuccess[1], flagSkip = TRUE;
 
     if(Design->consType == WALKER){
-        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_SAI.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
+        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_%s.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane, Design->sai.runTag);
     }
     else if(Design->consType == HYBRID){
-        sprintf(fullpath, "%s%s_perform_SAI.nc", Design->largeFilePath, Design->consName);
+        sprintf(fullpath, "%s%s_perform_%s.nc", Design->largeFilePath, Design->consName, Design->sai.runTag);
     }
     retval = nc_open(fullpath, NC_NOWRITE, &Design->ncPerformID);
     if(retval == NC_NOERR){
@@ -1882,10 +1830,13 @@ void createSpDataNc(void)
     }
 }
 
+// Names of the SAI counters in the performance file, in the order of ncSaiCntID
+static const char *saiCntName[SAI_NCNT] = {"nSpPassX", "nSpPassY", "nSpPassLcp", "nSpKappa", "nSpOffGrid"};
+
 void createPerformNc(void)
 {
     // IDs for the netCDF file, dimensions, and variables.
-    int dimID, dim1ID, dim2ID, dim3ID, dimIDs[3];
+    int dimID, dim1ID, dim2ID, dim3ID, dimIDs[3], dimSaiID, k;
     // Error handling
     int retval;
     // Fill values
@@ -1902,11 +1853,11 @@ void createPerformNc(void)
     // Output directory
     if(Design->consType == WALKER){
         sprintf(Design->largeFilePath, "%s%ld_%d_%s_%ld/", Design->largeFileRoot, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
-        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_SAI.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane);
+        sprintf(fullpath,"%s%ld_%d_%s_%ld_perform_%s.nc", Design->largeFilePath, Design->nRx, (int) Design->alt, Design->inc_str, Design->nPlane, Design->sai.runTag);
     }
     else if(Design->consType == HYBRID){
         sprintf(Design->largeFilePath, "%s%s/", Design->largeFileRoot, Design->consName);
-        sprintf(fullpath,"%s%s_perform_SAI.nc", Design->largeFilePath, Design->consName);
+        sprintf(fullpath,"%s%s_perform_%s.nc", Design->largeFilePath, Design->consName, Design->sai.runTag);
     }
     
     // .. Create the file .. //
@@ -1928,53 +1879,16 @@ void createPerformNc(void)
     
     if ((retval = nc_put_att_int(Design->ncPerformID, NC_GLOBAL, "nCell", NC_INT, 1, &nCell)))
         ERR(retval);
+    // SAI observation model the file was produced with
+    if ((retval = nc_put_att_text(Design->ncPerformID, NC_GLOBAL, "saiSource", strlen(Design->sai.source), Design->sai.source)))
+        ERR(retval);
+    if ((retval = nc_put_att_text(Design->ncPerformID, NC_GLOBAL, "saiRunTag", strlen(Design->sai.runTag), Design->sai.runTag)))
+        ERR(retval);
+    if ((retval = nc_def_dim(Design->ncPerformID, "nSaiCount", 1, &dimSaiID)))
+        ERR(retval);
 
-    // .. Variables for coverage metrics .. //
+    // .. Per-SoOp counters (coverage and revisit metrics come from obsFreq) .. //
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        // .. Revisit time .. //
-        sprintf(dimName, "nRevisit_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_dim(Design->ncPerformID, dimName, NC_UNLIMITED, &dimID)))
-            ERR(retval);
-
-        sprintf(varName, "revisitTime_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncRevisitTimeID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncRevisitTimeID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
-        sprintf(varName, "revisitRow_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncRevisitRowID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncRevisitRowID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
-        sprintf(varName, "revisitCol_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncRevisitColID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncRevisitColID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
-        // .. Coverage .. // 
-        // Visited
-        sprintf(dimName, "nAccess1st_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_dim(Design->ncPerformID, dimName, NC_UNLIMITED, &dimID)))
-            ERR(retval);
-        sprintf(varName, "accessTime1st_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncAccessTime1stID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncAccessTime1stID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
-        // Revisited
-        sprintf(dimName, "nAccess2nd_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_dim(Design->ncPerformID, dimName, NC_UNLIMITED, &dimID)))
-            ERR(retval);
-        sprintf(varName, "accessTime2nd_%s", Design->SoOp[iSoOp].name);
-        if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimID, &Design->ncAccessTime2ndID[iSoOp])))
-            ERR(retval);
-        if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncAccessTime2ndID[iSoOp], NC_FILL, &fillvalue_int)))
-            ERR(retval);
-
         // .. Valid/Invalid points .. //
         // # valid points
         sprintf(dimName, "n_nSpValid_%s", Design->SoOp[iSoOp].name);
@@ -1994,6 +1908,14 @@ void createPerformNc(void)
             ERR(retval);
         if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncNspInvalidID[iSoOp], NC_FILL, &fillvalue_int)))
             ERR(retval);
+        // SAI model counters: per-port passes, kappa > -1, points outside the grid
+        for(k=0; k<SAI_NCNT; k++){
+            sprintf(varName, "%s_%s", saiCntName[k], Design->SoOp[iSoOp].name);
+            if ((retval = nc_def_var(Design->ncPerformID, varName, NC_INT, 1, &dimSaiID, &Design->ncSaiCntID[iSoOp*SAI_NCNT + k])))
+                ERR(retval);
+            if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncSaiCntID[iSoOp*SAI_NCNT + k], NC_FILL, &fillvalue_int)))
+                ERR(retval);
+        }
     }
     // Frequency Combination
     if ((retval = nc_def_dim(Design->ncPerformID, "nWindow", Design->nWindow, &dim1ID)))
@@ -2010,7 +1932,12 @@ void createPerformNc(void)
     if ((retval = nc_def_var(Design->ncPerformID, "obsFreq", NC_INT, 3, dimIDs, &Design->ncObsFreqID)))
         ERR(retval);
     if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncObsFreqID, NC_FILL, &fillvalue_int)))
-        ERR(retval); 
+        ERR(retval);
+    // LHCP product (fallback), same layout as obsFreq; obsFreq is the H&V product
+    if ((retval = nc_def_var(Design->ncPerformID, "obsFreqL", NC_INT, 3, dimIDs, &Design->ncObsFreqLID)))
+        ERR(retval);
+    if ((retval = nc_def_var_fill(Design->ncPerformID, Design->ncObsFreqLID, NC_FILL, &fillvalue_int)))
+        ERR(retval);
 
     if ((retval = nc_def_dim(Design->ncPerformID, "nSuccess", 1, &dimID)))
         ERR(retval);
@@ -2113,69 +2040,20 @@ void writeSpDataNc(long iRx, long iSoOp, struct SpecularType *Sp)
     Design->ncCnt[iRx][iSoOp]++;
 }
 
-void writeRevisitTimeNc(void)
-{
-    int retval;
-    size_t count[1] = {1};
-    int iRow, iCol, iSoOp, iSp, nSp;
-    int revisitTime;
-
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                nSp = Design->griddataCnt[iSoOp][iRow][iCol];
-                // Compute revisit time
-                for(iSp=0; iSp<nSp-1; iSp++){
-                    revisitTime = Design->griddata[iSoOp][iRow][iCol][iSp+1] - Design->griddata[iSoOp][iRow][iCol][iSp];
-                    if(revisitTime > Design->revisitThreshold){
-                        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncRevisitTimeID[iSoOp], &Design->startpRevisit[iSoOp], count, &revisitTime)))
-                            ERR(retval)
-                        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncRevisitRowID[iSoOp], &Design->startpRevisit[iSoOp], count, &iRow)))
-                            ERR(retval)
-                        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncRevisitColID[iSoOp], &Design->startpRevisit[iSoOp], count, &iCol)))
-                            ERR(retval)
-                        Design->startpRevisit[iSoOp]++;
-                    }
-                }
-            }
-        }
-    }
-}
-
-void writeAccessTimeNc(void)
-{
-    int retval;
-    size_t count[1] = {1};
-    int iRow, iCol, iSoOp;
-
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        // Write time of 1st and 2nd accesses on each cell
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                if(Design->griddataCnt[iSoOp][iRow][iCol]>0){
-                    if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncAccessTime1stID[iSoOp], &Design->startpAccessTime1st[iSoOp], count, &Design->griddata[iSoOp][iRow][iCol][0])))
-                        ERR(retval)
-                    Design->startpAccessTime1st[iSoOp]++;
-                }
-                if(Design->griddataCnt[iSoOp][iRow][iCol]>1){
-                    if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncAccessTime2ndID[iSoOp], &Design->startpAccessTime2nd[iSoOp], count, &Design->griddata[iSoOp][iRow][iCol][1])))
-                        ERR(retval)
-                    Design->startpAccessTime2nd[iSoOp]++;
-                }
-            }
-        }
-    }
-}
-
 void writeNspNc(void)
 {
-    int retval, iSoOp;
+    int retval, iSoOp, k;
+    int *cnt[SAI_NCNT] = {Design->nSpPassX, Design->nSpPassY, Design->nSpPassLcp, Design->nSpKappa, Design->nSpOffGrid};
 
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
         if ((retval = nc_put_var_int(Design->ncPerformID, Design->ncNspValidID[iSoOp], &Design->nSpValid[iSoOp])))
             ERR(retval)
         if ((retval = nc_put_var_int(Design->ncPerformID, Design->ncNspInvalidID[iSoOp], &Design->nSpInvalid[iSoOp])))
             ERR(retval)
+        for(k=0; k<SAI_NCNT; k++){
+            if ((retval = nc_put_var_int(Design->ncPerformID, Design->ncSaiCntID[iSoOp*SAI_NCNT + k], &cnt[k][iSoOp])))
+                ERR(retval)
+        }
     }
 }
 
@@ -2183,8 +2061,7 @@ void writeObsFreqNc(int iteration)
 {
     int retval;
     size_t start[3], count[3];
-    int iRow, iCol, iSoOp, iSp, nSp, iWindow;
-    int windowNum, obsFreqWindow;
+    int iWindow;
 
     start[1] = 0;
     start[2] = iteration*Design->nCol;
@@ -2193,23 +2070,10 @@ void writeObsFreqNc(int iteration)
     count[2] = Design->nCol;
 
     for(iWindow=0; iWindow<Design->nWindow; iWindow++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){ // Sort SP data
-                obsFreqWindow = NO_OBS;
-                for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-                    nSp = Design->griddataCnt[iSoOp][iRow][iCol];
-                    for(iSp=0; iSp<nSp; iSp++){
-                        windowNum = Design->griddata[iSoOp][iRow][iCol][iSp] / Design->timeWindow;
-                        if(windowNum == iWindow){
-                            obsFreqWindow |= 1<<(iSoOp);
-                        }
-                    }
-                }
-                Design->obsFreq[iRow*Design->nCol + iCol] = obsFreqWindow; 
-            }
-        }
         start[0] = iWindow;
-        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncObsFreqID, start, count, &Design->obsFreq[0])))
+        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncObsFreqID, start, count, &Design->obsFreq[(size_t) iWindow*Grid[0].nRow*Design->nCol])))
+            ERR(retval);
+        if ((retval = nc_put_vara_int(Design->ncPerformID, Design->ncObsFreqLID, start, count, &Design->obsFreqL[(size_t) iWindow*Grid[0].nRow*Design->nCol])))
             ERR(retval);
     }
 }
@@ -2231,55 +2095,6 @@ void writeCostNc(void)
         ERR(retval)
 }
 
-int initSAImodel(modelSAI *SAI, const char *TxName, tableCDF *cdf_table)
-{
-    // RZSM Error Model for LHCP Reflectivity, 4 frequency bands (137, 255, 370, 1575.42 MHz)
-    double a_SM_eta = (0.6222+0.6385)/2;
-    double a_SM_T = (2.542e-4 + 2.277e-4)/2;
-    double b_SM = (0.0844 + 0.0789 + 0.0810 + 0.0803)/4;
-    double RMSE_SM_target = 0.09;
-    double T = 12;
-    double eta_max_avg = 1/a_SM_eta * sqrt((RMSE_SM_target - b_SM)*(RMSE_SM_target - b_SM) - (a_SM_T*T)*(a_SM_T*T));
-    double N_incoh[3] = {100, 50, 1000}; // Number of incoherent samples averaged in the reflectivity measurement
-    double eta_max_single;
-    double eta_bar_single;
-    double BW_signal[3] = {16e3, 25e3, 5e6}; // Signal bandwidth in Hz
-    double T_integ[3] = {0.01, 0.02, 0.001}; // Integration time in sec
-    double S0[3] = {1.247913816202226e+15, 7.289963274631603e+15, 6.892428308691730e+14};
-    double alpha_threshold[3] = {3.737435820648506e+15, 5.492451164628094e+16, 2.498832837131167e+17};
-    int iSoOp;
-    
-    if(!strcmp(TxName, "ORBCOMM")){
-        iSoOp = 0;
-    }
-    else if(!strcmp(TxName, "UFO")){
-        iSoOp = 1;
-    }
-    else if(!strcmp(TxName, "MUOS")){
-        iSoOp = 2;
-    }
-    else{
-        fprintf(stderr, "Unsupported TxName: %s\n", TxName);
-        return -1;
-    }
-    eta_max_single = eta_max_avg * sqrt(N_incoh[iSoOp]);
-    eta_bar_single = sqrt(sqrt(eta_max_single*eta_max_single + 1) - 1);
-
-    SAI->S0 = S0[iSoOp];
-    SAI->alpha_threshold = alpha_threshold[iSoOp];
-    SAI->eta_bar_single = eta_bar_single;
-    SAI->N_coh = T_integ[iSoOp]*BW_signal[iSoOp]; // Number of coherent samples in the integration time
-    SAI->gamma = 0.8;
-
-    // Read reflectivity CDF table
-    SAI->X = get_x_column(cdf_table, iSoOp); // Get the x column for the current SoOp from the CDF table
-    if (!SAI->X) {
-        fprintf(stderr, "Unsupported SoOp: %d\n", iSoOp);
-        return -1;
-    }
-    return 0;
-}
-
 void readSpDataNc(int iteration)
 {
     // IDs for the netCDF file, dimensions, and variables.
@@ -2294,34 +2109,18 @@ void readSpDataNc(int iteration)
     // Loop
     int iRx, iSoOp, iTx, iSp;
     long iRow, iCol;
-    // Flag
-    int flagValid;
-    // For RCG constraints
-    double RCG_R, antGainD, antGainR;
-    //double threshold_RCG_D[3] = {2.51353004264460e-15, 4.70350610913321e-16, 1.28655266830211e-16};
     struct DesignSoOpType *DS;
     // Grid
     struct EASEgridType *G;
-    // CDF table for SAI model
-    tableCDF cdf_table;
     // SAI model
-    modelSAI SAI;
+    const SaiTx *T;
+    unsigned saiMask;
+    long iWindow;
 
-    // Reset variables
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                Design->griddataCnt[iSoOp][iRow][iCol] = 0;
-                for(iSp=0; iSp<MAX_NSP; iSp++)
-                    Design->griddata[iSoOp][iRow][iCol][iSp] = 0;
-            }
-        }
-    }
+    // Reset the window bitmasks of this slice
+    memset(Design->obsFreq, 0, sizeof(int)*Design->nWindow*Grid[0].nRow*Design->nCol);
+    memset(Design->obsFreqL, 0, sizeof(int)*Design->nWindow*Grid[0].nRow*Design->nCol);
 
-    if (read_cdf_table("reflectivity_cdf_table.txt", &cdf_table) != 0) {
-        exit(1);
-    }
-    
     /* Create the file. */
     for(iRx=0; iRx<Design->nRx; iRx++){
         if(Design->consType == WALKER){
@@ -2335,15 +2134,11 @@ void readSpDataNc(int iteration)
             ERR(retval);
             
         for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-            DS = &Design->SoOp[iSoOp];      
+            DS = &Design->SoOp[iSoOp];
 
-            if(!strcmp(DS->name, "ORBCOMM") || !strcmp(DS->name, "UFO") || !strcmp(DS->name, "MUOS")){
-                if (initSAImodel(&SAI, DS->name, &cdf_table) != 0) {
-                    exit(1);
-                }
-            }
             for(iTx=0; iTx<DS->nTx; iTx++){
                 strcpy(TxName, DS->TxName[iTx]);
+                T = DS->saiTx[iTx];
                 sprintf(dimName, "nSp_%s", TxName);
                 if ((retval = nc_inq_dimid(Design->ncID[iRx], dimName, &dimID)))
                     ERR(retval);
@@ -2473,7 +2268,8 @@ void readSpDataNc(int iteration)
                     if ((retval = nc_get_var_double(Design->ncID[iRx], Design->ncRangeSRID[iRx][iSoOp], &Design->accessRangeSR[0])))
                         ERR(retval);
 
-                    if(!strcmp(TxName, "MUOS")){
+                    // Spot-beam rule from the SAI section: MUOS only, not UFO on the MUOS orbits
+                    if(T->useSpotbeam){
                         Design->accessSpotbeam = (int *) realloc(Design->accessSpotbeam, sizeof(int)*dimNSp);
                         if (Design->accessSpotbeam == NULL) {
                             printf("Design->accessSpotbeam calloc returned null pointer.  Bailing out!\n");
@@ -2489,87 +2285,44 @@ void readSpDataNc(int iteration)
                     }
                     
                     for(iSp=0; iSp<dimNSp; iSp++){
-                        if(!strcmp(TxName, "MUOS"))
-                            flagValid = Design->accessSpotbeam[iSp];
-                        else
-                            flagValid = TRUE;
-                        if(flagValid){
-                            G = &Grid[0];
-                            // Mapping indices
-                            ease2_LL2RC(G, Design->accessLat[iSp], Design->accessLon[iSp], &iRow, &iCol);
-                            iCol = iCol - iteration*Design->nCol;
-                            if(iCol < Design->nCol && iCol >= 0){
-                                // Read antenna gain
-                                if(DS->antTag == IDEAL){
-                                    // Transmitter direction
-                                    Bistatic->g_rt[0][0] = 1; Bistatic->g_rt[0][1] = 0;
-                                    Bistatic->g_rt[1][0] = 0; Bistatic->g_rt[1][1] = 1;
-                                    // Specular direction
-                                    Bistatic->g_rs[0][0] = 1; Bistatic->g_rs[0][1] = 0;
-                                    Bistatic->g_rs[1][0] = 0; Bistatic->g_rs[1][1] = 1;
-                                }
-                                else if(DS->antTag == GAUSSIAN){
-                                    // Transmitter direction
-                                    LookupAntPattern(DS->antPattern, DS->antPatRes, Pi - Design->accessLookAngElD[iSp], Pi - Design->accessLookAngAzD[iSp], Bistatic->g_rt);
-                                    // Specular direction
-                                    LookupAntPattern(DS->antPattern, DS->antPatRes, Design->accessLookAngElR[iSp], Design->accessLookAngAzR[iSp], Bistatic->g_rs);
-                                }
-                                else if(DS->antTag == USER_DEFINED){
-                                    // Transmitter direction
-                                    LookupAntPattern(DS->antPattern, DS->antPatRes, Design->accessLookAngElD[iSp], Design->accessLookAngAzD[iSp], Bistatic->g_rt);
-                                    // Specular direction
-                                    LookupAntPattern(DS->antPattern, DS->antPatRes, Design->accessLookAngElR[iSp], Design->accessLookAngAzR[iSp], Bistatic->g_rs);
-                                }
-                                
-                                antGainR = cabs(Bistatic->g_rs[0][1])*cabs(Bistatic->g_rs[0][1]) * DS->G_Rx_num;
+                        if(T->useSpotbeam && !Design->accessSpotbeam[iSp])
+                            continue;
+                        G = &Grid[0];
+                        // Mapping indices
+                        ease2_LL2RC(G, Design->accessLat[iSp], Design->accessLon[iSp], &iRow, &iCol);
+                        if(iRow < 0 || iRow >= G->nRow || iCol < 0 || iCol >= Design->nCol*Design->gridDivisor){
+                            if(iteration == 0)
+                                Design->nSpOffGrid[iSoOp]++;
+                            continue;
+                        }
+                        iCol = iCol - iteration*Design->nCol;
+                        if(iCol < Design->nCol && iCol >= 0){
+                            // Observation tests of the SAI model (sai.c)
+                            saiMask = saiEvaluate(&Design->sai, T,
+                                                  Design->accessRangeTR[iSp], Design->accessRangeTS[iSp], Design->accessRangeSR[iSp],
+                                                  Design->accessLookAngElD[iSp], Design->accessLookAngAzD[iSp],
+                                                  Design->accessLookAngElR[iSp], Design->accessLookAngAzR[iSp], NULL);
+                            if(saiMask & SAI_PASS_X) Design->nSpPassX[iSoOp]++;
+                            if(saiMask & SAI_PASS_Y) Design->nSpPassY[iSoOp]++;
+                            if(saiMask & SAI_PASS_LCP) Design->nSpPassLcp[iSoOp]++;
+                            if(saiMask & SAI_KAPPA_GT_M1) Design->nSpKappa[iSoOp]++;
 
-                                // Check RCG constraints
-                                if(!strcmp(TxName, "GPS") || !strcmp(TxName, "Galileo") || !strcmp(TxName, "Beidou") || !strcmp(TxName, "GLONASS")){
-                                    RCG_R = antGainR / (Design->accessRangeTS[iSp]*Design->accessRangeTS[iSp]) / (Design->accessRangeSR[iSp]*Design->accessRangeSR[iSp]);
-                                    if(RCG_R > Design->minReflectRCG)
-                                        flagValid = TRUE;
-                                    else
-                                        flagValid = FALSE;
-                                }
-                                else{
-                                    // Test 1
-                                    antGainD = cabs(Bistatic->g_rt[0][0])*cabs(Bistatic->g_rt[0][0]) * DS->G_Rx_num;
-                                    SAI.alpha = Design->accessRangeTR[iSp] * Design->accessRangeTR[iSp] / antGainD;
-                                    if (SAI.alpha < SAI.alpha_threshold){
-                                        // Test 2
-                                        SAI.beta = antGainR * Design->accessRangeTR[iSp] * Design->accessRangeTR[iSp] / (antGainD * (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]) * (Design->accessRangeTS[iSp] + Design->accessRangeSR[iSp]));
-                                        SAI.SD = SAI.S0 / SAI.alpha;
-                                        SAI.ND = 1 + 1/SAI.SD;
-                                        SAI.C = (1 + SAI.eta_bar_single * SAI.N_coh - 2 * SAI.ND) / 2;
-                                        SAI.Gamma_upper = (SAI.C + sqrt(SAI.C*SAI.C - SAI.ND*SAI.ND)) / SAI.beta;
-                                        SAI.Gamma_lower = (SAI.C - sqrt(SAI.C*SAI.C - SAI.ND*SAI.ND)) / SAI.beta;
-                                        SAI.F_upper = lookup_F_from_x(SAI.X, cdf_table.F, cdf_table.n, SAI.Gamma_upper);
-                                        SAI.F_lower = lookup_F_from_x(SAI.X, cdf_table.F, cdf_table.n, SAI.Gamma_lower);
-                                        
-                                        if( (SAI.F_upper - SAI.F_lower) > SAI.gamma){
-                                            flagValid = TRUE;
-                                        }
-                                        else{
-                                            flagValid = FALSE;
-                                        }
-                                    }
-                                    else{
-                                        flagValid = FALSE;
-                                    }
-                                }
+                            // SoOp bit in the observation window of the point (points after the
+                            // last full window are not used)
+                            iWindow = Design->accessSec[iSp] / Design->timeWindow;
 
-                                // Sort data into a grid
-                                if(flagValid){
-                                    Design->nSpValid[iSoOp]++;
-                                    Design->griddata[iSoOp][iRow][iCol][Design->griddataCnt[iSoOp][iRow][iCol]++] = Design->accessSec[iSp];
-                                    if(Design->griddataCnt[iSoOp][iRow][iCol] == MAX_NSP){
-                                        printf("Error: nSp exceeds MAX_NSP, file:%s\n", fullpath);
-                                        exit(1);
-                                    }
-                                }
-                                else{
-                                    Design->nSpInvalid[iSoOp]++;
-                                }
+                            // LHCP product
+                            if((saiMask & SAI_PASS_LCP) && iWindow >= 0 && iWindow < Design->nWindow)
+                                Design->obsFreqL[(iWindow*Grid[0].nRow + iRow)*Design->nCol + iCol] |= 1<<(iSoOp);
+
+                            // H&V product: the usable observation
+                            if((saiMask & SAI_PASS_HV) == SAI_PASS_HV){
+                                Design->nSpValid[iSoOp]++;
+                                if(iWindow >= 0 && iWindow < Design->nWindow)
+                                    Design->obsFreq[(iWindow*Grid[0].nRow + iRow)*Design->nCol + iCol] |= 1<<(iSoOp);
+                            }
+                            else{
+                                Design->nSpInvalid[iSoOp]++;
                             }
                         }
                     }
@@ -2669,48 +2422,6 @@ void deleteSpDataNc(void)
         if((retval = remove(fullpath)))
             ERRNO(retval);
     }
-}
-
-void sortGriddata(void)
-{
-    int iRow, iCol, iSoOp, i, j, nSp, temp;
-
-    for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                nSp = Design->griddataCnt[iSoOp][iRow][iCol];
-                // Sort in ascending order    
-                for(i=0; i<nSp; ++i){
-                    for(j=i+1; j<nSp; ++j){
-                        if (Design->griddata[iSoOp][iRow][iCol][i] > Design->griddata[iSoOp][iRow][iCol][j]) {
-                            temp = Design->griddata[iSoOp][iRow][iCol][i];
-                            Design->griddata[iSoOp][iRow][iCol][i] = Design->griddata[iSoOp][iRow][iCol][j];
-                            Design->griddata[iSoOp][iRow][iCol][j] = temp;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-void freeGriddata(void)
-{
-    int iRow, iCol, iSoOp;
-
-    for(iSoOp=0; iSoOp<NSoOp; iSoOp++){
-        for(iRow=0; iRow<Grid[0].nRow; iRow++){
-            for(iCol=0; iCol<Design->nCol; iCol++){
-                free(Design->griddata[iSoOp][iRow][iCol]);
-            }
-            free(Design->griddata[iSoOp][iRow]);
-            free(Design->griddataCnt[iSoOp][iRow]);
-        }
-        free(Design->griddata[iSoOp]);
-        free(Design->griddataCnt[iSoOp]);
-    }
-    free(Design->griddata);
-    free(Design->griddataCnt);
 }
 
 void update_design(int taskID)
@@ -3955,15 +3666,6 @@ void performAnalyzer(int taskID)
         printf("Task %d >> (%d/%d) Importing specular points data into a grid...\n", taskID, i+1, Design->gridDivisor);
         readSpDataNc(i);
         printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
-        printf("Task %d >> (%d/%d) Sorting data in each cell...\n", taskID, i+1, Design->gridDivisor);
-        sortGriddata();
-        printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
-        printf("Task %d >> (%d/%d) Calculating revisit time...\n", taskID, i+1, Design->gridDivisor);
-        writeRevisitTimeNc();
-        printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
-        printf("Task %d >> (%d/%d) Writing access times...\n", taskID, i+1, Design->gridDivisor);
-        writeAccessTimeNc();
-        printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
         printf("Task %d >> (%d/%d) Writing observable frequency combinations...\n", taskID, i+1, Design->gridDivisor);
         writeObsFreqNc(i);
         printf("Task %d >> (%d/%d) Success!\n", taskID, i+1, Design->gridDivisor);
@@ -3974,7 +3676,6 @@ void performAnalyzer(int taskID)
     printf("Task %d >> Closing the file...\n", taskID);
     closePerformNc();
     printf("Task %d >> Success!\n", taskID);
-    //freeGriddata();   
     //printf("Task %d >> Store the specular points data files... ", taskID); fflush(stdout);
     //storeSpDataNc();
     //deleteSpDataNc();

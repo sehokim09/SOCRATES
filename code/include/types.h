@@ -72,16 +72,7 @@ struct DesignSoOpType{
 	char name[20];
 	long nTx;
 	char **TxName;
-	double G_Rx; // Receive Antenna Gain [dB]
-	double G_Rx_num; // numeric
-	long antTag; // Antenna Type - USER-DEFINED, DIPOLE, PATCH etc.
-	char antFileName[4][40]; // Antenna Pattern File Name
-	char polRx; // Receiver Antenna Polarization
-	double ***antPattern; // Antenna Pattern [dBi]
-	double antPatRes; // Antenna Pattern Resolution [deg]
-	double hpbw; // Receive Antenna Half-Power Bandwidth [deg]
-	double SLL; // Side-lobe Level of Antenna Pattern [dB]
-	double XPL; // Cross-Polarization Level of Antenna Pattern [dB]
+	const SaiTx **saiTx; // SAI observation-model entry per Tx (SAI section of Inp_Design.txt)
 };
 
 struct DesignType{
@@ -109,10 +100,6 @@ struct DesignType{
 	// Other Variables
 	uint8_t flagTxPropagation; // if TRUE, propagate Tx, otherwise import existing data
 	long timeWindow;
-	double revisitThreshold;
-	double minReflectRCG; // minimum reflected RCG (m^-4)
-	double minDirectRCG; // minimum direct RCG (dB)
-	double maxRCGdiff; // maximum RCG difference (dB) 
 	// Internal Variables
 	long nRxPrev;
 	long nSCPrev;
@@ -162,9 +149,7 @@ struct DesignType{
 	double *accessRangeTS;
 	double *accessRangeSR;
 	int *accessSpotbeam;
-	// Variables for sorting Sp data into a grid
-	int ****griddata;
-	int ***griddataCnt;
+	// Longitudinal slicing of the analysis grid
 	int gridDivisor;
 	int nCol;
 	int nWindow;
@@ -173,20 +158,21 @@ struct DesignType{
 	struct DesignSoOpType *SoOp;
 	int ncPerformID;
 	int ncSuccessPerfID;
-	int *ncRevisitTimeID;
-	int *ncRevisitRowID;
-	int *ncRevisitColID;
-	int *ncAccessTime1stID;
-	int *ncAccessTime2ndID;
 	int *ncNspValidID;
 	int *ncNspInvalidID;
 	int ncObsFreqID;
-	size_t *startpRevisit;
-	size_t *startpAccessTime1st;
-	size_t *startpAccessTime2nd;
-	int *obsFreq;
-	int *nSpValid;
+	int ncObsFreqLID;
+	int *ncSaiCntID; // per SoOp, SAI_NCNT counters (nSpPassX, nSpPassY, nSpPassLcp, nSpKappa, nSpOffGrid)
+	int *obsFreq; // H&V product of the current slice, bit iSoOp per [iWindow][iRow][iCol]
+	int *obsFreqL; // LHCP product of the current slice, bit iSoOp per [iWindow][iRow][iCol]
+	int *nSpValid; // H&V product: ports X and Y both pass
 	int *nSpInvalid;
+	int *nSpPassX; // per-port passes and diagnostics of the SAI model
+	int *nSpPassY;
+	int *nSpPassLcp;
+	int *nSpKappa; // SAI points with kappa > -1
+	int *nSpOffGrid; // points outside the analysis grid
+	SaiModel sai; // SAI observation model (SAI section of Inp_Design.txt)
 	// Variables for analyzing cost
 	int ncCostID;
 	int ncCostVarID;	
@@ -1146,33 +1132,5 @@ struct GsType{
 	double *t_acc_start; // Starting time of access interval
 	double *t_acc_end; // Ending time of access interval
 };
-
-typedef struct {
-    double *F;
-    double *X137;
-    double *X255;
-    double *X370;
-    size_t n;
-} tableCDF;
-
-typedef struct{
-	double S0;
-	double alpha_threshold;
-	double eta_bar_single;
-	double N_coh;
-	const double *X;
-
-	double alpha;
-	double beta;
-	double SD;
-	double ND;
-	double C;
-	double Gamma_upper;
-	double Gamma_lower;
-
-	double F_upper;
-	double F_lower;
-	double gamma;
-} modelSAI;
 
 #endif

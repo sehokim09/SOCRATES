@@ -1,0 +1,228 @@
+/*                 Note: FOV Boresight is +Z Axis                 */
+************************* Fields of View ***************************
+2                                  !  Number of FOVs
+--------------------------------------------------------------------
+"Antenna LOS"                      !  Label
+48   0.3                           !  Number of Sides, Length [m]
+140.0  140.0                          !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+0  2                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+0.0  0.0  0.0  213                !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Antenna LOS"                      !  Label
+48   0.3                           !  Number of Sides, Length [m]
+140.0  140.0                          !  X Width, Y Height [deg]
+0.0 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+0  2                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+180.0  0.0  0.0  213                !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 1"                       !  Label
+48   130                      !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+0.0  0.0  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 2"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+0.0  3.8701  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 3"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+72.0  3.8701  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 4"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+144.0  3.8701  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 5"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+216.0  3.8701  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 6"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+288.0  3.8701  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 7"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+0.0  7.7053  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 8"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+36.0  6.2467  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 9"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+72.0  7.7053  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 10"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+108.0  6.2467  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 11"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+144.0  7.7053  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 12"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+180.0  6.2467  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 13"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+216.0  7.7053  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 14"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+252.0  6.2467  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 15"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+288.0  7.7053  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"Spotbeam 16"                       !  Label
+48   130                           !  Number of Sides, Length [m]
+4.7883  4.7883                     !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+2  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+324.0  6.2467  0.0  321              !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+
+
+
+4                                  !  Number of FOVs
+--------------------------------------------------------------------
+"SOLID"                            !  Label
+4   4.0                            !  Number of Sides, Length [m]
+8.0  4.0                           !  X Width, Y Height [deg]
+0.0 1.0 0.0 0.5                    !  Color RGB+Alpha
+SOLID                              !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+0  0                               !  SC, Body 
+0.0  0.0  1.0                      !  Position in Body [m]
+0.0  0.0  0.0  321                 !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"WIRE"                             !  Label
+24   4.0                           !  Number of Sides, Length [m]
+10.0  5.0                          !  X Width, Y Height [deg]
+0.7 0.7 0.0 1.0                    !  Color RGB+Alpha
+WIREFRAME                          !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+0  0                               !  SC, Body 
+1.0  0.0  0.0                      !  Position in Body [m]
+90.0  0.0  0.0  213                !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"VECTOR"                           !  Label
+0   4.0                            !  Number of Sides, Length [m]
+0.0  0.0                           !  X Width, Y Height [deg]
+0.0 1.0 1.0 1.0                    !  Color RGB+Alpha
+VECTOR                             !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+0  0                               !  SC, Body 
+1.0  0.0  0.0                      !  Position in Body [m]
+135.0  0.0  0.0  213               !  Euler Angles [deg], Sequence
+--------------------------------------------------------------------
+"PLANE"                            !  Label
+24    8.0                           !  Number of Sides, Length [m]
+0.0  0.0                           !  X Width, Y Height [deg]
+1.0 1.0 1.0 0.3                    !  Color RGB+Alpha
+PLANE                              !  WIREFRAME, SOLID, VECTOR, or PLANE 
+TRUE  TRUE                         !  Draw Near Field, Draw Far Field
+0  0                               !  SC, Body 
+0.0  0.0  0.0                      !  Position in Body [m]
+-45.0  0.0  0.0  213               !  Euler Angles [deg], Sequence
