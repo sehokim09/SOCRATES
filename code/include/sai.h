@@ -13,8 +13,9 @@
 /*  on three port scorings: linear X and Y at the H&V budget, and the      */
 /*  synthesized LHCP port at the LHCP budget.                              */
 /*                                                                         */
-/*  Every payload and requirement number is read from Inp_SAI.txt, which   */
-/*  export_socrates_inputs.m writes from the evaluator workspace. The      */
+/*  Every payload and requirement number is read from the SAI Observation  */
+/*  Model section of Inp_Design.txt, which export_socrates_inputs.m writes */
+/*  from the evaluator workspace. The                                      */
 /*  module has no SOCRATES or 42 dependency, so the standalone checker     */
 /*  sai_check links it on its own.                                         */
 /***************************************************************************/
@@ -24,6 +25,9 @@
 #define SAI_MAX_TX   16
 #define SAI_NSCORE   3          /* port scorings X, Y, Lcp */
 #define SAI_NCDFCOL  4          /* 137, 255, 370, 1575 MHz */
+
+/* Title of the Inp_Design.txt section that holds the SAI model */
+#define SAI_SECTION_MARKER "SAI Observation Model"
 
 /* Port scorings, also the bit positions of the saiEvaluate mask */
 enum { SAI_SCORE_X = 0, SAI_SCORE_Y = 1, SAI_SCORE_LCP = 2 };
@@ -63,8 +67,9 @@ typedef struct {
 typedef struct {
     char name[20];
     int isGNSS, cdfCol, useSpotbeam;        /* cdfCol is 0-based */
-    double S0, Nc, TI, Nincoh, etaBarHV, etaBarL;
-    double GlinPeak_dB, GcpPeak_dB;         /* GcpPeak_dB as written in Inp_SAI.txt */
+    double S0, Nc, TI, Nincoh;
+    double etaBarHV, etaBarL;               /* single-look budgets, from eta and Nincoh */
+    double GlinPeak_dB;
     const SaiPattern *pat;
     double thrRCG[SAI_NSCORE];              /* GNSS threshold per scoring */
 } SaiTx;
@@ -91,15 +96,16 @@ typedef struct {
     double ba[SAI_NSCORE], thr[SAI_NSCORE]; /* GNSS only */
 } SaiDiag;
 
-/* Read Inp_SAI.txt (CDF files resolved next to it) and the pattern files
-   under antRoot/<pattern subdirectory>. Returns 0 on success; on error
-   prints the reason to stderr and returns nonzero. */
-int saiLoad(const char *inpPath, const char *antRoot, SaiModel *M);
+/* Read the SAI_SECTION_MARKER section of an Inp_Design.txt (CDF files
+   resolved next to it) and the pattern files under antRoot/<pattern
+   subdirectory>. Returns 0 on success; on error prints the reason to
+   stderr and returns nonzero. */
+int saiLoad(const char *designPath, const char *antRoot, SaiModel *M);
 void saiFree(SaiModel *M);
 
 /* Transmitter entry for a SoOp: matched on the SoOp name first (ORBCOMM,
    UFO, MUOS), then on the Tx name (GNSS members of GPS, GE, GENB).
-   NULL when neither is in Inp_SAI.txt. */
+   NULL when neither is in the SAI section. */
 const SaiTx *saiFindTx(const SaiModel *M, const char *soopName, const char *txName);
 
 /* Evaluate one specular point. Ranges in metres, angles in radians in the

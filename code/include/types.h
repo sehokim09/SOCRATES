@@ -72,17 +72,7 @@ struct DesignSoOpType{
 	char name[20];
 	long nTx;
 	char **TxName;
-	double G_Rx; // Receive Antenna Gain [dB]
-	double G_Rx_num; // numeric
-	long antTag; // Antenna Type - USER-DEFINED, DIPOLE, PATCH etc.
-	char antFileName[4][40]; // Antenna Pattern File Name
-	char polRx; // Receiver Antenna Polarization
-	double ***antPattern; // Antenna Pattern [dBi]
-	double antPatRes; // Antenna Pattern Resolution [deg]
-	double hpbw; // Receive Antenna Half-Power Bandwidth [deg]
-	double SLL; // Side-lobe Level of Antenna Pattern [dB]
-	double XPL; // Cross-Polarization Level of Antenna Pattern [dB]
-	const SaiTx **saiTx; // SAI observation-model entry per Tx (Inp_SAI.txt)
+	const SaiTx **saiTx; // SAI observation-model entry per Tx (SAI section of Inp_Design.txt)
 };
 
 struct DesignType{
@@ -110,9 +100,6 @@ struct DesignType{
 	// Other Variables
 	uint8_t flagTxPropagation; // if TRUE, propagate Tx, otherwise import existing data
 	long timeWindow;
-	double minReflectRCG; // minimum reflected RCG (m^-4), parsed but no longer used
-	double minDirectRCG; // minimum direct RCG (dB)
-	double maxRCGdiff; // maximum RCG difference (dB) 
 	// Internal Variables
 	long nRxPrev;
 	long nSCPrev;
@@ -185,7 +172,7 @@ struct DesignType{
 	int *nSpPassLcp;
 	int *nSpKappa; // SAI points with kappa > -1
 	int *nSpOffGrid; // points outside the analysis grid
-	SaiModel sai; // SAI observation model (Inp_SAI.txt)
+	SaiModel sai; // SAI observation model (SAI section of Inp_Design.txt)
 	// Variables for analyzing cost
 	int ncCostID;
 	int ncCostVarID;	

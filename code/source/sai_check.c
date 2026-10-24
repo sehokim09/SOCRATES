@@ -4,13 +4,15 @@
 /*  Standalone validation of sai.c against the MATLAB evaluator            */
 /*  single_ant_model.m (doc/SAI_model_validation.md).                      */
 /*                                                                         */
-/*  sai_check --selftest INP_SAI ANT_ROOT [CDF_CSV]                         */
+/*  sai_check --selftest INP_DESIGN ANT_ROOT [CDF_CSV]                      */
 /*      Unit checks: Test 1 at kappa = -1 against the printed manuscript   */
 /*      form, rho1*rho2 = N_D^2, the step CDF lookup against a direct      */
 /*      evaluation of its definition (and, with CDF_CSV, the x/F pairs for */
-/*      a MATLAB interp1 cross-check), and Gcp against Inp_SAI.txt.        */
+/*      a MATLAB interp1 cross-check); prints Gcp from the pattern files.  */
 /*                                                                         */
-/*  sai_check [--alias NAME=SAT]... [--out DIR] INP_SAI ANT_ROOT FILE.nc...*/
+/*  sai_check [--alias NAME=SAT]... [--out DIR] INP_DESIGN ANT_ROOT FILE.nc...*/
+/*      INP_DESIGN is an Inp_Design.txt with an SAI Observation Model      */
+/*      section.                                                           */
 /*      Evaluates every specular point of the single-receiver files, in    */
 /*      the order given, and prints the pass fractions per transmitter.    */
 /*      NAME=SAT reads transmitter NAME from the SAT variables of the      */
@@ -39,8 +41,8 @@ static const char *scoreName[SAI_NSCORE] = {"X", "Y", "Lcp"};
 static void usage(void)
 {
     fprintf(stderr,
-        "usage: sai_check --selftest INP_SAI ANT_ROOT [CDF_CSV]\n"
-        "       sai_check [--alias NAME=SAT]... [--out DIR] INP_SAI ANT_ROOT FILE.nc...\n");
+        "usage: sai_check --selftest INP_DESIGN ANT_ROOT [CDF_CSV]\n"
+        "       sai_check [--alias NAME=SAT]... [--out DIR] INP_DESIGN ANT_ROOT FILE.nc...\n");
     exit(2);
 }
 
@@ -180,15 +182,10 @@ static int selftest(const SaiModel *M, const char *cdfCsv)
         printf("    x/F pairs written to %s for the MATLAB interp1 cross-check\n", cdfCsv);
     }
 
-    /* 4. Gcp from the pattern integral against Inp_SAI.txt (saiAnt.G_cp_dB) */
-    printf("[4] Gcp from the pattern integral against saiAnt.G_cp_dB in Inp_SAI.txt\n");
-    for (t = 0; t < M->nTx; t++) {
-        const SaiTx *T = &M->tx[t];
-        double dG = T->pat->GcpPeak_dB - T->GcpPeak_dB;
-        if (fabs(dG) > 0.01) nFail++;
-        printf("    %-8s %-16s integral %.6f dBi, file %.4f dBi, diff %+.6f dB%s\n", T->name, T->pat->tag,
-               T->pat->GcpPeak_dB, T->GcpPeak_dB, dG, fabs(dG) > 0.01 ? "  FAIL" : "");
-    }
+    /* 4. Gcp from the pattern integral (compare with saiAnt.G_cp_dB in sai_antenna.m) */
+    printf("[4] Gcp from the pattern integral (compare with saiAnt.G_cp_dB in sai_antenna.m)\n");
+    for (t = 0; t < M->nPat; t++)
+        printf("    %-16s %.6f dBi\n", M->pat[t].tag, M->pat[t].GcpPeak_dB);
 
     printf("selftest: %s (%d failure%s)\n", nFail ? "FAILED" : "passed", nFail, nFail == 1 ? "" : "s");
     return nFail ? 1 : 0;

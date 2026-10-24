@@ -24,9 +24,6 @@ function DesignParamsObj = readInpDesign(projPath)
 %
 %   Version 1.0
 
-    % Path to antenna pattern folder 
-    antPath = fullfile(fileparts(fileparts(projPath)), 'ant_pat');
-
     DesignParamsObj = DesignParams;
 
     fileID = fopen(fullfile(projPath,"Inp_Design.txt"), "r");
@@ -109,15 +106,6 @@ function DesignParamsObj = readInpDesign(projPath)
     % Observation Time Window [hour]
     line = fgetl(fileID);
     DesignParamsObj.window = sscanf(line, "%f %*[\n]");
-    % Minimum Reflected RCG for GPS [1E-27*m^-4]
-    line = fgetl(fileID);
-    DesignParamsObj.minRCG_R = sscanf(line, "%f %*[\n]");
-    % Minimum Direct RCG [dB]
-    line = fgetl(fileID);
-    DesignParamsObj.minRCG_D = sscanf(line, "%f %*[\n]");
-    % Maximum RCG Difference [dB]
-    line = fgetl(fileID);
-    DesignParamsObj.maxRCGdiff = sscanf(line, "%f %*[\n]");
     % Longitudinal Grid Divisor
     line = fgetl(fileID);
     DesignParamsObj.gridDivisor = sscanf(line, "%d %*[\n]");
@@ -154,53 +142,10 @@ function DesignParamsObj = readInpDesign(projPath)
             line = fgetl(fileID);
             DesignParamsObj.TxComb(iTxComb).TxName(iTx) = string(sscanf(line, "%s %*[\n]"));
         end
-        % Rx Ant Max Gain [dB], Polarization (R,L,X,Y)
-        line = fgetl(fileID);
-        temp = sscanf(line, "%f %s %*[\n]", [1 Inf]);
-        DesignParamsObj.TxComb(iTxComb).gainRx_dB = temp(1);
-        switch char(temp(2:end))
-            case 'R'
-                DesignParamsObj.TxComb(iTxComb).polRx = 'RHCP';
-            case 'L'
-                DesignParamsObj.TxComb(iTxComb).polRx = 'LHCP';
-            case 'X'
-                DesignParamsObj.TxComb(iTxComb).polRx = 'V-pol';
-            case 'Y'
-                DesignParamsObj.TxComb(iTxComb).polRx = 'H-pol';
-        end
-        % Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)
-        line = fgetl(fileID);
-        temp = sscanf(line, "%s %*[\n]");
-        switch temp
-            case 'IDEAL'
-                DesignParamsObj.TxComb(iTxComb).antPatTypeRx = 'Ideal';
-            case 'GAUSSIAN'
-                DesignParamsObj.TxComb(iTxComb).antPatTypeRx = 'Generalized-Gaussian';
-            case 'USER_DEFINED'
-                DesignParamsObj.TxComb(iTxComb).antPatTypeRx = 'User-defined';
-        end
-        % (GAUSSIAN) Receiver HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
-        line = fgetl(fileID);
-        temp = sscanf(line, "%f %f %f %f %*[\n]");
-        DesignParamsObj.TxComb(iTxComb).antPatGG.HPBW_deg = temp(1);
-        DesignParamsObj.TxComb(iTxComb).antPatGG.SLL_dB = temp(2);
-        DesignParamsObj.TxComb(iTxComb).antPatGG.XPL_dB = temp(3);
-        DesignParamsObj.TxComb(iTxComb).antPatGG.res_deg = temp(4);
-        % (USER_DEFINED) Receiver Antenna Pattern File Names
-        line = fgetl(fileID);
-        temp = sscanf(line, "%s %*[\n]");
-        DesignParamsObj.TxComb(iTxComb).antPatFilepath.XX = fullfile(antPath, temp);
-        line = fgetl(fileID);
-        temp = sscanf(line, "%s %*[\n]");
-        DesignParamsObj.TxComb(iTxComb).antPatFilepath.XY = fullfile(antPath, temp);
-        line = fgetl(fileID);
-        temp = sscanf(line, "%s %*[\n]");
-        DesignParamsObj.TxComb(iTxComb).antPatFilepath.YX = fullfile(antPath, temp);
-        line = fgetl(fileID);
-        temp = sscanf(line, "%s %*[\n]");
-        DesignParamsObj.TxComb(iTxComb).antPatFilepath.YY = fullfile(antPath, temp);
     end
 
+    % The SAI Observation Model section that follows is written by
+    % export_socrates_inputs.m and kept as is by createInpDesign.
     fclose(fileID);
     
     % Initialize frequency combinations
@@ -219,9 +164,9 @@ function DesignParamsObj = readInpDesign(projPath)
         DesignParamsObj.perform.SRT.score(iTxComb) = DesignParamsObj.perform.SRT.score(1);
     end
     DesignParamsObj.perform.MSC.score(1).weight = 1 / DesignParamsObj.nFreqComb;
-    DesignParamsObj.perform.MTC.score(1).weight = 1 / DesignParamsObj.nFreqComb;
+    DesignParamsObj.perform.MRT.score(1).weight = 1 / DesignParamsObj.nFreqComb;
     for iFreqComb = 2 : DesignParamsObj.nFreqComb
         DesignParamsObj.perform.MSC.score(iFreqComb) = DesignParamsObj.perform.MSC.score(1);
-        DesignParamsObj.perform.MTC.score(iFreqComb) = DesignParamsObj.perform.MTC.score(1);
+        DesignParamsObj.perform.MRT.score(iFreqComb) = DesignParamsObj.perform.MRT.score(1);
     end
 end

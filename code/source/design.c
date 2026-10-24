@@ -732,13 +732,6 @@ void loadDesign(void)
   	// .. Observation Time Window .. //
     fscanf(infile,"%ld %[^\n] %[\n]",&Design->timeWindow,junk,&newline);
     Design->timeWindow *= 3600; // hour to sec
-  	// .. Minimum Reflected RCG (kept for the file format; the SAI model of Inp_SAI.txt replaces it) .. //
-    fscanf(infile,"%lf %[^\n] %[\n]",&Design->minReflectRCG,junk,&newline);
-    Design->minReflectRCG *= 1E-27;
-  	// .. Minimum Direct RCG .. //
-    fscanf(infile,"%lf %[^\n] %[\n]",&Design->minDirectRCG,junk,&newline);
-  	// .. Maximum RCG Difference .. //
-    fscanf(infile,"%lf %[^\n] %[\n]",&Design->maxRCGdiff,junk,&newline);
     // .. Longitudinal Grid Divisior .. //
     fscanf(infile,"%d %[^\n] %[\n]",&Design->gridDivisor,junk,&newline);
     // .. Large file storage root directory .. //
@@ -779,19 +772,6 @@ void loadDesign(void)
             }  
     	    fscanf(infile,"%s %[^\n] %[\n]",Design->SoOp[iSoOp].TxName[iTx],junk,&newline);
         }
-        // Receive Antenna Gain, Polarization
-		fscanf(infile,"%lf %c %[^\n] %[\n]", &Design->SoOp[iSoOp].G_Rx, &Design->SoOp[iSoOp].polRx, junk,&newline);
-        Design->SoOp[iSoOp].G_Rx_num = pow(10, Design->SoOp[iSoOp].G_Rx/10.0);
-		// Receive Antenna Pattern
-		fscanf(infile,"%s %[^\n] %[\n]",response,junk,&newline);
-		Design->SoOp[iSoOp].antTag = decodeStr(response);
-		// (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]
-		fscanf(infile, "%lf %lf %lf %lf %[^\n] %[\n]", &Design->SoOp[iSoOp].hpbw, &Design->SoOp[iSoOp].SLL, &Design->SoOp[iSoOp].XPL, &Design->SoOp[iSoOp].antPatRes, junk, &newline);
-		// (USER_DEFINED) File Name for Antenna Pattern
-		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[0],junk,&newline);
-		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[1],junk,&newline);
-		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[2],junk,&newline);
-		fscanf(infile,"%s %[^\n] %[\n]", Design->SoOp[iSoOp].antFileName[3],junk,&newline);
     }
 	fclose(infile);
 }
@@ -1191,8 +1171,8 @@ void initConsPerform(void)
 
     Design->nCol = Grid[0].nCol / Design->gridDivisor;
 
-    // .. SAI observation model: replaces the Rx antenna and RCG entries of Inp_Design.txt .. //
-    sprintf(saiPath, "%sInp_SAI.txt", SimPath);
+    // .. SAI observation model: the SAI section at the end of Inp_Design.txt .. //
+    sprintf(saiPath, "%sInp_Design.txt", SimPath);
     if(saiLoad(saiPath, AntPath, &Design->sai) != 0){
         printf("Cannot load the SAI observation model %s.  Bailing out!\n", saiPath);
         exit(1);
@@ -1215,7 +1195,6 @@ void initConsPerform(void)
     MPI_Comm_rank(MPI_COMM_WORLD, &taskID);
     if(taskID == MASTER){
         printf("SAI observation model: %s, run tag %s\n", Design->sai.source, Design->sai.runTag);
-        printf("Notice: the Rx antenna gain/pattern and Minimum Reflected RCG entries of Inp_Design.txt are not used.\n");
     }
 
     Design->ncNspValidID = (int *) calloc(Design->nSoOp, sizeof(int));
@@ -2289,7 +2268,7 @@ void readSpDataNc(int iteration)
                     if ((retval = nc_get_var_double(Design->ncID[iRx], Design->ncRangeSRID[iRx][iSoOp], &Design->accessRangeSR[0])))
                         ERR(retval);
 
-                    // Spot-beam rule from Inp_SAI.txt: MUOS only, not UFO on the MUOS orbits
+                    // Spot-beam rule from the SAI section: MUOS only, not UFO on the MUOS orbits
                     if(T->useSpotbeam){
                         Design->accessSpotbeam = (int *) realloc(Design->accessSpotbeam, sizeof(int)*dimNSp);
                         if (Design->accessSpotbeam == NULL) {

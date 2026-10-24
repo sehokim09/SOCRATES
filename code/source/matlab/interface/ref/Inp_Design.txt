@@ -18,9 +18,6 @@ Hybrid-1                  ! Constellation Name
 ========================= Other Parameters ===========================
 FALSE                     ! Real-time Transmitter Propagation
 12                        ! Observation Time Window [hour]
-5                         ! Minimum Reflected RCG for GPS [1E-27m^-4]
-0                         ! Minimum Direct RCG [dB]
-3                         ! Maximum RCG Difference [dB]
 4                         ! Longitudinal Grid Divisor
 /local/scratch/a/kim3002/ ! Large File Storage Root Directory
 =========================== Data to Report =============================

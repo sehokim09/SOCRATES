@@ -61,7 +61,7 @@ static int saiReadDouble(FILE *fp, const char *what, double *v)
     char val[256], *end;
 
     if (!saiReadValue(fp, val, sizeof val)) {
-        fprintf(stderr, "saiLoad: Inp_SAI.txt ends before \"%s\"\n", what);
+        fprintf(stderr, "saiLoad: the SAI section ends before \"%s\"\n", what);
         return -1;
     }
     *v = strtod(val, &end);
@@ -75,7 +75,7 @@ static int saiReadDouble(FILE *fp, const char *what, double *v)
 static int saiReadString(FILE *fp, const char *what, char *v, size_t n)
 {
     if (!saiReadValue(fp, v, n) || v[0] == '\0') {
-        fprintf(stderr, "saiLoad: Inp_SAI.txt has no value for %s\n", what);
+        fprintf(stderr, "saiLoad: the SAI section has no value for %s\n", what);
         return -1;
     }
     return 0;
@@ -363,21 +363,18 @@ static int saiLoadPattern(const char *patDir, const char *tag, SaiPattern *P)
 /*  Load / free                                                           */
 /* --------------------------------------------------------------------- */
 
-static int saiCheckEtaBar(const SaiTx *T, double eta, double etaBar, const char *which)
+/* Single-look error budget from the dwell-averaged eta, as single_ant_model.m
+   computes it: eta_bar = sqrt((eta*sqrt(N_incoh))^2 + 1) - 1 */
+static double saiEtaBar(double eta, double Nincoh)
 {
-    double ref = sqrt(1.0 + T->Nincoh*eta*eta) - 1.0;
-    if (fabs(etaBar - ref) > 1e-9*fabs(ref)) {
-        fprintf(stderr, "saiLoad: %s %s = %.17g but sqrt(1 + Nincoh*eta^2) - 1 = %.17g\n",
-                T->name, which, etaBar, ref);
-        return -1;
-    }
-    return 0;
+    double e = eta*sqrt(Nincoh);
+    return sqrt(e*e + 1.0) - 1.0;
 }
 
-int saiLoad(const char *inpPath, const char *antRoot, SaiModel *M)
+int saiLoad(const char *designPath, const char *antRoot, SaiModel *M)
 {
     FILE *fp;
-    char val[256], inpDir[1024], path[1024], patDir[1024], patSub[256];
+    char inpDir[1024], path[1024], patDir[1024], patSub[256], line[512];
     char cdfName[SAI_NSCORE][256], row[512], type[8], tag[40];
     const char *slash;
     double nTx;
@@ -385,18 +382,23 @@ int saiLoad(const char *inpPath, const char *antRoot, SaiModel *M)
     const char *portName[SAI_NSCORE] = {"X", "Y", "L"};
 
     memset(M, 0, sizeof *M);
-    if ((fp = fopen(inpPath, "r")) == NULL) {
-        fprintf(stderr, "saiLoad: cannot open %s\n", inpPath);
+    if ((fp = fopen(designPath, "r")) == NULL) {
+        fprintf(stderr, "saiLoad: cannot open %s\n", designPath);
         return -1;
     }
-    slash = strrchr(inpPath, '/');
+    slash = strrchr(designPath, '/');
     if (slash == NULL) snprintf(inpDir, sizeof inpDir, "./");
-    else snprintf(inpDir, sizeof inpDir, "%.*s", (int) (slash - inpPath + 1), inpPath);
+    else snprintf(inpDir, sizeof inpDir, "%.*s", (int) (slash - designPath + 1), designPath);
 
-    if (!saiReadValue(fp, val, sizeof val)) {                          /* header */
-        fclose(fp);
-        goto truncated;
-    }
+    /* the section starts after its title line */
+    do {
+        if (fgets(line, sizeof line, fp) == NULL) {
+            fprintf(stderr, "saiLoad: %s has no \"%s\" section (run export_socrates_inputs.m)\n",
+                    designPath, SAI_SECTION_MARKER);
+            fclose(fp);
+            return -1;
+        }
+    } while (strstr(line, SAI_SECTION_MARKER) == NULL);
     if (saiReadString(fp, "the source", M->source, sizeof M->source)
         || saiReadDouble(fp, "gamma", &M->gamma)
         || saiReadDouble(fp, "W_D", &M->WD)
@@ -431,11 +433,11 @@ int saiLoad(const char *inpPath, const char *antRoot, SaiModel *M)
         char *p = row;
         while (isspace((unsigned char) *p)) p++;
         if (*p == '!' || *p == '\0') continue;
-        n = sscanf(p, "%19s %7s %d %39s %lf %lf %lf %lf %lf %lf %lf %lf %d",
-                   T->name, type, &T->cdfCol, tag, &T->GlinPeak_dB, &T->GcpPeak_dB,
-                   &T->S0, &T->Nc, &T->TI, &T->Nincoh, &T->etaBarHV, &T->etaBarL, &T->useSpotbeam);
-        if (n != 13) {
-            fprintf(stderr, "saiLoad: transmitter row %d has %d of 13 fields: %s", i + 1, n, row);
+        n = sscanf(p, "%19s %7s %d %39s %lf %lf %lf %lf %lf %d",
+                   T->name, type, &T->cdfCol, tag, &T->GlinPeak_dB,
+                   &T->S0, &T->Nc, &T->TI, &T->Nincoh, &T->useSpotbeam);
+        if (n != 10) {
+            fprintf(stderr, "saiLoad: transmitter row %d has %d of 10 fields: %s", i + 1, n, row);
             fclose(fp);
             return -1;
         }
@@ -457,11 +459,8 @@ int saiLoad(const char *inpPath, const char *antRoot, SaiModel *M)
             fclose(fp);
             return -1;
         }
-        if (saiCheckEtaBar(T, M->etaHV, T->etaBarHV, "etaBarHV")
-            || saiCheckEtaBar(T, M->etaL, T->etaBarL, "etaBarL")) {
-            fclose(fp);
-            return -1;
-        }
+        T->etaBarHV = saiEtaBar(M->etaHV, T->Nincoh);
+        T->etaBarL = saiEtaBar(M->etaL, T->Nincoh);
         for (k = 0; k < i; k++) {
             if (!strcmp(M->tx[k].name, T->name)) {
                 fprintf(stderr, "saiLoad: transmitter %s listed twice\n", T->name);
@@ -487,7 +486,7 @@ int saiLoad(const char *inpPath, const char *antRoot, SaiModel *M)
     fclose(fp);
     if (i < M->nTx) goto truncated;
 
-    /* CDF tables, resolved next to Inp_SAI.txt; one F grid for all ports */
+    /* CDF tables, resolved next to Inp_Design.txt; one F grid for all ports */
     for (ip = 0; ip < SAI_NSCORE; ip++) {
         saiJoin(path, sizeof path, inpDir, cdfName[ip]);
         if (saiLoadCdf(path, &M->cdf[ip])) { saiFree(M); return -1; }
@@ -499,16 +498,8 @@ int saiLoad(const char *inpPath, const char *antRoot, SaiModel *M)
         M->Ginv[ip] = saiQuantile(&M->cdf[ip], SAI_NCDFCOL - 1, 1.0 - M->gamma);
     }
 
-    /* Gcp from the pattern integral is what the evaluator uses; the file value
-       is the rounded saiAnt.G_cp_dB and serves as a check */
     for (i = 0; i < M->nTx; i++) {
         SaiTx *T = &M->tx[i];
-        if (fabs(T->pat->GcpPeak_dB - T->GcpPeak_dB) > 0.01) {
-            fprintf(stderr, "saiLoad: %s Gcp from the %s pattern integral is %.4f dBi, Inp_SAI.txt has %.4f\n",
-                    T->name, T->pat->tag, T->pat->GcpPeak_dB, T->GcpPeak_dB);
-            saiFree(M);
-            return -1;
-        }
         if (T->isGNSS) {
             /* RCG_threshold = 1 ./ (eta_bar .* S0 .* N_coh .* Ginv) */
             for (ip = 0; ip < SAI_NSCORE; ip++) {
@@ -521,7 +512,7 @@ int saiLoad(const char *inpPath, const char *antRoot, SaiModel *M)
     return 0;
 
 truncated:
-    fprintf(stderr, "saiLoad: %s is truncated\n", inpPath);
+    fprintf(stderr, "saiLoad: the SAI section of %s is truncated\n", designPath);
     saiFree(M);
     return -1;
 }

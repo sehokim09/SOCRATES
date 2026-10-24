@@ -27,8 +27,22 @@ function createInpDesign(projPath, DesignParamsObj)
     % Set paths
     refFilePath = fullfile(cd, 'code', 'source', 'matlab', 'interface', 'ref', 'Inp_Design.txt');
 
-    % Copy reference file
+    % Keep the SAI Observation Model section that export_socrates_inputs.m
+    % wrote at the end of an existing file; it is appended again below
     filepath = fullfile(projPath, 'Inp_Design.txt');
+    saiSection = strings(0, 1);
+    if isfile(filepath)
+        oldLines = readlines(filepath);
+        iSai = find(contains(oldLines, "SAI Observation Model"), 1);
+        if ~isempty(iSai)
+            saiSection = oldLines(iSai:end);
+            while ~isempty(saiSection) && strlength(strtrim(saiSection(end))) == 0
+                saiSection(end) = [];
+            end
+        end
+    end
+
+    % Copy reference file
     system(['cp ', refFilePath, ' ', filepath]);
 
     lines = [2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17];
@@ -85,13 +99,11 @@ function createInpDesign(projPath, DesignParamsObj)
     end
     texts(idxLastLine + 1) = sprintf("%s                     ! Real-time Transmitter Propagation\n", flagTxPropagation);
     texts(idxLastLine + 2) = sprintf("%f               ! Observation Time Window [hour]\n", DesignParamsObj.window);
-    texts(idxLastLine + 3) = sprintf("%f               ! Minimum Reflected RCG for GPS [1E-27m^-4]\n", DesignParamsObj.minRCG_R);
-    texts(idxLastLine + 4) = sprintf("%f               ! Minimum Direct RCG [dB]\n", DesignParamsObj.minRCG_D);
-    texts(idxLastLine + 5) = sprintf("%f               ! Maximum RCG Difference [dB]\n", DesignParamsObj.maxRCGdiff);
-    texts(idxLastLine + 6) = sprintf("%d                     ! Longitudinal Grid Divisor\n", DesignParamsObj.gridDivisor);
-    texts(idxLastLine + 7) = sprintf("%s/ ! Large File Storage Root Directory\n", DesignParamsObj.largeFilePath);
-    lines(idxLastLine+1 : idxLastLine+7) = lines(idxLastLine) + (2:8);
-    flagAdd(idxLastLine+1 : idxLastLine+7) = 0;
+    texts(idxLastLine + 3) = sprintf("%d                     ! Longitudinal Grid Divisor\n", DesignParamsObj.gridDivisor);
+    % one trailing slash, however many the stored path has (readInpDesign keeps it)
+    texts(idxLastLine + 4) = sprintf("%s/ ! Large File Storage Root Directory\n", regexprep(char(DesignParamsObj.largeFilePath), '/+$', ''));
+    lines(idxLastLine+1 : idxLastLine+4) = lines(idxLastLine) + (2:5);
+    flagAdd(idxLastLine+1 : idxLastLine+4) = 0;
 
     idxLastLine = length(lines);
     
@@ -118,43 +130,18 @@ function createInpDesign(projPath, DesignParamsObj)
         for iTx = 1 : DesignParamsObj.TxComb(iTxComb).nTx
             texts(idxLastLine+3+iTx) = sprintf("%s                   ! Tx %d Name (From Inp_Inorbit.txt)\n", DesignParamsObj.TxComb(iTxComb).TxName(iTx), iTx);
         end
-        switch DesignParamsObj.TxComb(iTxComb).polRx
-            case 'RHCP'
-                polRx = 'R';
-            case 'LHCP'
-                polRx = 'L';
-            case 'V-pol'
-                polRx = 'X';
-            case 'H-pol'
-                polRx = 'Y';
-        end
-        texts(idxLastLine+4+DesignParamsObj.TxComb(iTxComb).nTx) = sprintf("%f      %s                ! Rx Ant Max Gain [dB], Polarization (R,L,X,Y)\n", DesignParamsObj.TxComb(iTxComb).gainRx_dB, polRx);
-        switch DesignParamsObj.TxComb(iTxComb).antPatTypeRx
-            case 'Ideal'
-                antPatType = 'IDEAL';
-            case 'Generalized-Gaussian'
-                antPatType = 'GAUSSIAN';
-            case 'User-defined'
-                antPatType = 'USER_DEFINED';
-        end
-        texts(idxLastLine+5+DesignParamsObj.TxComb(iTxComb).nTx) = sprintf("%s                  ! Rx Norm Ant Pat (IDEAL, GAUSSIAN, USER_DEFINED)\n", antPatType);
-        texts(idxLastLine+6+DesignParamsObj.TxComb(iTxComb).nTx) = sprintf("%f %f %f %f  ! (GAUSSIAN) HPBW[deg], Sidelobe[dB], X-pol[dB], Res[deg]\n", ...
-            DesignParamsObj.TxComb(iTxComb).antPatGG.HPBW_deg, DesignParamsObj.TxComb(iTxComb).antPatGG.SLL_dB, DesignParamsObj.TxComb(iTxComb).antPatGG.XPL_dB, DesignParamsObj.TxComb(iTxComb).antPatGG.res_deg);
-        
-        [~, filename, ext] = fileparts(DesignParamsObj.TxComb(iTxComb).antPatFilepath.Co);
-        antPatCo = strcat(filename, ext);
-        [~, filename, ext] = fileparts(DesignParamsObj.TxComb(iTxComb).antPatFilepath.X);
-        antPatX = strcat(filename, ext);
-        
-        texts(idxLastLine+7+DesignParamsObj.TxComb(iTxComb).nTx) = sprintf("%s ! (USER_DEFINED) Rx Ant Pat Co-pol File\n", ...
-            antPatCo);
-        texts(idxLastLine+8+DesignParamsObj.TxComb(iTxComb).nTx) = sprintf("%s ! (USER_DEFINED) Rx Ant Pat X-pol File\n", ...
-            antPatX);
 
-        lines(idxLastLine+1 : idxLastLine+8+DesignParamsObj.TxComb(iTxComb).nTx) = lines(idxLastLine) + (1:8+DesignParamsObj.TxComb(iTxComb).nTx);
-        flagAdd(idxLastLine+1 : idxLastLine+8+DesignParamsObj.TxComb(iTxComb).nTx) = 1;
-        idxLastLine = idxLastLine + 8+DesignParamsObj.TxComb(iTxComb).nTx;
+        lines(idxLastLine+1 : idxLastLine+3+DesignParamsObj.TxComb(iTxComb).nTx) = lines(idxLastLine) + (1:3+DesignParamsObj.TxComb(iTxComb).nTx);
+        flagAdd(idxLastLine+1 : idxLastLine+3+DesignParamsObj.TxComb(iTxComb).nTx) = 1;
+        idxLastLine = idxLastLine + 3+DesignParamsObj.TxComb(iTxComb).nTx;
     end
 
     editTextFile(filepath,lines,texts,flagAdd);
+
+    % Put the SAI Observation Model section back at the end
+    if ~isempty(saiSection)
+        fid = fopen(filepath, 'a');
+        fprintf(fid, '%s\n', saiSection);
+        fclose(fid);
+    end
 end

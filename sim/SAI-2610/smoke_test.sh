@@ -19,7 +19,7 @@ PROJ=SAI-2610
 TEST=${PROJ}-smoke
 CONS=${NRX}_${ALT}_${INC}_${NPL}
 ROOT=$(awk '/Large File Storage Root Directory/ {print $1}' sim/$PROJ/Inp_Design.txt)
-TAG=$(awk '/Run tag/ {print $1}' sim/$PROJ/Inp_SAI.txt)
+TAG=$(awk '/Run tag/ {print $1}' sim/$PROJ/Inp_Design.txt)
 NP=${NP:-1}
 
 for i in $(seq 1 "$NRX"); do
@@ -28,7 +28,7 @@ for i in $(seq 1 "$NRX"); do
 done
 
 make SOCRATES sai_check
-./sai_check --selftest sim/$PROJ/Inp_SAI.txt ./ant_pat/
+./sai_check --selftest sim/$PROJ/Inp_Design.txt ./ant_pat/
 
 # temporary project: SAI-2610 with the design lists reduced to this constellation
 rm -rf "sim/$TEST" "orbit/42input/$TEST"

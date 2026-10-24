@@ -18,7 +18,9 @@ Plan: `ASR_SAI_Design/docs/SOCRATES_SAI_update.md`, Section 7.
 
 - Payload: `solved_payload.m` of 2026-10-21 14:07 (`GNSS_EIRP_MODE = "margin"`, 1 dB,
   `GNSS_SIG = [1575.42 26.934]`, `N_chan = [2 2 1 1 1 1 1]`), RX_POL = "HVC".
-- `sim/SAI-2610/Inp_SAI.txt` and `reflectivity_cdf_{X,Y,L}.txt`, written by
+- The SAI Observation Model section of `sim/SAI-2610/Inp_Design.txt` (a separate
+  `Inp_SAI.txt` until it was merged into `Inp_Design.txt`, with the same values) and
+  `reflectivity_cdf_{X,Y,L}.txt`, written by
   `ASR/code/payload/export_socrates_inputs.m` from the `single_ant_model.m` workspace,
   numbers in `%.17g` (exact doubles); pattern files in `ant_pat/sai/` and `ant_pat/sai/cp/`.
 - The evaluator was run in a scratch copy of the ASR tree so that its own outputs
@@ -41,7 +43,8 @@ eta_HV = 0.051975, eta_L = 0.029550; S0 within 4e-6 of the Section 2.1 formula
 
 ## 1. Unit checks
 
-`./sai_check --selftest sim/SAI-2610/Inp_SAI.txt ./ant_pat/ cdf.csv`
+`./sai_check --selftest sim/SAI-2610/Inp_Design.txt ./ant_pat/ cdf.csv`
+(the Gcp row compares the self-test output with `saiAnt.G_cp_dB` in `sai_antenna.m`)
 
 | Check | Result |
 |---|---|
@@ -149,8 +152,8 @@ name.
 
 ```
 make sai_check
-./sai_check --selftest sim/SAI-2610/Inp_SAI.txt ./ant_pat/ cdf.csv
-./sai_check --alias UFO=MUOS --out DIR sim/SAI-2610/Inp_SAI.txt ./ant_pat/ <payload.geomFiles in order>
+./sai_check --selftest sim/SAI-2610/Inp_Design.txt ./ant_pat/ cdf.csv
+./sai_check --alias UFO=MUOS --out DIR sim/SAI-2610/Inp_Design.txt ./ant_pat/ <payload.geomFiles in order>
 ```
 
 MATLAB, from `ASR/code/payload` (or a copy of it, to keep the workspace untouched):
