@@ -41,9 +41,6 @@ classdef DesignParams < handle
                         'inc', "SSO"); % Inclination [deg]
         flagTxPropagation % Flag for Tx Propagation
         window % Observation Time Window [hour]
-        minRCG_R % Minimum Reflected RCG for GPS [1E-27*m^-4]
-        minRCG_D % Minimum Direct RCG [dB]
-        maxRCGdiff % Maximum RCG Difference [dB]
         gridDivisor % Longitudinal Grid Divisor
         largeFilePath % Large File Storage Root Directory
         flagReport % Individual Receiver Data (per Inp_Report.txt)
@@ -51,16 +48,7 @@ classdef DesignParams < handle
         nFreqComb % Number of Frequency Combinations
         TxComb = struct('name', 'NewTxComb', ... % Combination Name
                         'nTx', 0, ... % Number of Included Tx Systems
-                        'TxName', "", ... % Included Tx Names
-                        'gainRx_dB', 0, ... % Rx Antenna Gain 
-                        'polRx', 'RHCP', ... % Rx Polarization
-                        'antPatTypeRx', 'Ideal', ... % Rx antenna pattern type
-                        'antPatGG', struct('HPBW_deg', 0, ... % Beamwidth (degrees)
-                                           'SLL_dB', 0, ... % Sidelobe Level (dB)
-                                           'XPL_dB', 0, ... % Cross-pol level (dB)
-                                           'res_deg', 0), ... % Resoultion (deg)
-                        'antPatFilepath', struct('Co', [], ... % User-defined Co-pol antenna pattern file path
-                                                 'X', [])); % User-defined X-pol antenna pattern file path
+                        'TxName', ""); % Included Tx Names
         freqComb = struct('name', 'NewFreqComb', ... % Combination name
                           'ID', 0, ... % Identifier
                           'nTxComb', 0, ... % Number of Included Tx combinations
@@ -102,7 +90,27 @@ classdef DesignParams < handle
                                                        'upper', 7)));
     end
     
-    methods
-
+    methods (Static)
+        function obj = loadobj(s)
+            % Projects saved before the RCG and receiver-antenna inputs were
+            % removed carry properties the class no longer has, so MATLAB
+            % passes a struct: copy the properties that still exist. Their
+            % TxComb entries also carry the old fields; keep only the current
+            % ones, so that a new default TxComb can be appended to the list.
+            if isstruct(s)
+                obj = DesignParams;
+                names = intersect(fieldnames(s), properties(obj));
+                for k = 1:numel(names)
+                    obj.(names{k}) = s.(names{k});
+                end
+            else
+                obj = s;
+            end
+            default = DesignParams;
+            extra = setdiff(fieldnames(obj.TxComb), fieldnames(default.TxComb));
+            if ~isempty(extra)
+                obj.TxComb = rmfield(obj.TxComb, extra);
+            end
+        end
     end
 end
