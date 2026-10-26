@@ -4,8 +4,9 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
 %   Read performance and cost NetCDF files and save FoM_[projName].mat
 %   with restart/checkpoint support for long runs.
 %
-%   performTag (optional, default "SAI") selects <constellation>_perform_<tag>.nc,
-%   the run tag of the project's Inp_SAI.txt (e.g. "SAI2610").
+%   performTag (optional) selects <constellation>_perform_<tag>.nc; by default
+%   it is the run tag of the SAI Observation Model section of the project's
+%   Inp_Design.txt (e.g. "SAI2610").
 %
 %   useParallel (optional, default false) computes the cases in a parfor loop:
 %   each case is saved to its own file in sim/<projName>/out/FoM_<projName>_cases/
@@ -44,7 +45,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
 %   Version 1.0
 
     if nargin < 3 || isempty(performTag)
-        performTag = "SAI";
+        performTag = readRunTag(projName);
     end
     if nargin < 4 || isempty(useParallel)
         useParallel = false;
@@ -460,6 +461,18 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
     M.postProcessComplete = true;
 
     fprintf('Post-processing completed successfully.\n');
+end
+
+function tag = readRunTag(projName)
+% READRUNTAG  Run tag of the SAI Observation Model section of
+%   sim/<projName>/Inp_Design.txt, which names the performance files.
+    file = fullfile('sim', projName, 'Inp_Design.txt');
+    lines = readlines(file);
+    iTag = find(contains(lines, "! Run tag"), 1);
+    if isempty(iTag)
+        error('createFoM:noRunTag', 'No run tag in %s; pass performTag.', file);
+    end
+    tag = strtrim(extractBefore(lines(iTag), "!"));
 end
 
 function [rtDays, nMulti] = revisitTimeWindows(obsMask, windowHours, landmaskVec)
