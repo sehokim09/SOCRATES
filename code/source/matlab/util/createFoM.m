@@ -513,81 +513,52 @@ function R = fomCase(costFile, performFile, P)
         obsFreqCumul = bitor(obsFreq1T(:,:,iWindow), obsFreqCumul);
     end
 
-    %% MRT and Nmulti
+    %% MRT, Nmulti and coverage, per frequency combination
     %   MRT [days]: per land cell m_i = T_sim / max(N_i, 1), N_i the number
     %   of windows in which the cell saw every frequency of the combination
     %   (a cell never observed counts as T_sim); MRT is the mean of m_i over
     %   land cells. Nmulti: land cells observed in at least two windows.
+    %   Coverage: share of grid cells observed at least once (1st) and at
+    %   least twice (2nd) by the end of each window, from the cumulative
+    %   observation count; zonal and global: mean count over land cells.
     R.MRT1T = nan(1, nFreqComb);
     R.MRT2T = nan(1, nFreqComb);
     R.Nmulti1T = zeros(1, nFreqComb);
     R.Nmulti2T = zeros(1, nFreqComb);
-    for iFreq = 1:nFreqComb
-        landmaskVec = reshape(landmask(:,:,iFreq), [], 1);
-        [R.MRT1T(iFreq), R.Nmulti1T(iFreq)] = revisitTimeWindows( ...
-            bitand(obsFreq1T, freqComb(iFreq)) == freqComb(iFreq), P.windowHours1T, landmaskVec);
-        [R.MRT2T(iFreq), R.Nmulti2T(iFreq)] = revisitTimeWindows( ...
-            bitand(obsFreq2T, freqComb(iFreq)) == freqComb(iFreq), P.windowHours2T, landmaskVec);
-    end
-
-    %% 1T coverage
-    obs1Tcumul = zeros(nCol, nRow, nFreqComb);
     R.coverage1T1st = zeros(nWindow, nFreqComb);
     R.coverage1T2nd = zeros(nWindow, nFreqComb);
+    R.coverage2T1st = zeros(nWindow/2, nFreqComb);
+    R.coverage2T2nd = zeros(nWindow/2, nFreqComb);
+    obs1Tcumul = zeros(nCol, nRow, nFreqComb);
+    obs2Tcumul = zeros(nCol, nRow, nFreqComb);
+    for iFreq = 1:nFreqComb
+        landmaskVec = reshape(landmask(:,:,iFreq), [], 1);
+        obsMask1T = bitand(obsFreq1T, freqComb(iFreq)) == freqComb(iFreq);
+        obsMask2T = bitand(obsFreq2T, freqComb(iFreq)) == freqComb(iFreq);
+        [R.MRT1T(iFreq), R.Nmulti1T(iFreq)] = revisitTimeWindows(obsMask1T, P.windowHours1T, landmaskVec);
+        [R.MRT2T(iFreq), R.Nmulti2T(iFreq)] = revisitTimeWindows(obsMask2T, P.windowHours2T, landmaskVec);
 
-    for iWindow = 1:nWindow
-        for iFreq = 1:nFreqComb
-            flagObs = bitand(obsFreq1T(:,:,iWindow), freqComb(iFreq)) == freqComb(iFreq);
-            obs1Tcumul(:,:,iFreq) = obs1Tcumul(:,:,iFreq) + flagObs;
-            R.coverage1T1st(iWindow, iFreq) = sum(obs1Tcumul(:,:,iFreq) > 0, 'all');
-            R.coverage1T2nd(iWindow, iFreq) = sum(obs1Tcumul(:,:,iFreq) > 1, 'all');
-        end
+        nObs1T = cumsum(uint8(obsMask1T), 3);       % observations up to each window
+        nObs2T = cumsum(uint8(obsMask2T), 3);
+        R.coverage1T1st(:, iFreq) = reshape(sum(nObs1T > 0, [1 2]), [], 1);
+        R.coverage1T2nd(:, iFreq) = reshape(sum(nObs1T > 1, [1 2]), [], 1);
+        R.coverage2T1st(:, iFreq) = reshape(sum(nObs2T > 0, [1 2]), [], 1);
+        R.coverage2T2nd(:, iFreq) = reshape(sum(nObs2T > 1, [1 2]), [], 1);
+        obs1Tcumul(:,:,iFreq) = double(nObs1T(:,:,end));
+        obs2Tcumul(:,:,iFreq) = double(nObs2T(:,:,end));
     end
 
     R.coverage1T1st = R.coverage1T1st / double(nCell) * 100;
     R.coverage1T2nd = R.coverage1T2nd / double(nCell) * 100;
-
-    R.coverage1Tzonal = zeros(nRow, nFreqComb);
-    for iRow = 1:nRow
-        for iFreq = 1:nFreqComb
-            idx = landmask(:, iRow, iFreq);
-            if any(idx)
-                R.coverage1Tzonal(iRow, iFreq) = mean(obs1Tcumul(idx, iRow, iFreq));
-            else
-                R.coverage1Tzonal(iRow, iFreq) = NaN;
-            end
-        end
-    end
-    R.coverage1Tglobal = mean(reshape(obs1Tcumul(landmask), [], nFreqComb), 1);
-
-    %% 2T coverage
-    obs2Tcumul = zeros(nCol, nRow, nFreqComb);
-    R.coverage2T1st = zeros(nWindow/2, nFreqComb);
-    R.coverage2T2nd = zeros(nWindow/2, nFreqComb);
-
-    for iWindow = 1:nWindow/2
-        for iFreq = 1:nFreqComb
-            flagObs = bitand(obsFreq2T(:,:,iWindow), freqComb(iFreq)) == freqComb(iFreq);
-            obs2Tcumul(:,:,iFreq) = obs2Tcumul(:,:,iFreq) + flagObs;
-            R.coverage2T1st(iWindow, iFreq) = sum(obs2Tcumul(:,:,iFreq) > 0, 'all');
-            R.coverage2T2nd(iWindow, iFreq) = sum(obs2Tcumul(:,:,iFreq) > 1, 'all');
-        end
-    end
-
     R.coverage2T1st = R.coverage2T1st / double(nCell) * 100;
     R.coverage2T2nd = R.coverage2T2nd / double(nCell) * 100;
 
-    R.coverage2Tzonal = zeros(nRow, nFreqComb);
-    for iRow = 1:nRow
-        for iFreq = 1:nFreqComb
-            idx = landmask(:, iRow, iFreq);
-            if any(idx)
-                R.coverage2Tzonal(iRow, iFreq) = mean(obs2Tcumul(idx, iRow, iFreq));
-            else
-                R.coverage2Tzonal(iRow, iFreq) = NaN;
-            end
-        end
-    end
+    nLandRow = reshape(sum(landmask, 1), nRow, nFreqComb);
+    R.coverage1Tzonal = reshape(sum(obs1Tcumul .* landmask, 1), nRow, nFreqComb) ./ nLandRow;
+    R.coverage2Tzonal = reshape(sum(obs2Tcumul .* landmask, 1), nRow, nFreqComb) ./ nLandRow;
+    R.coverage1Tzonal(nLandRow == 0) = NaN;
+    R.coverage2Tzonal(nLandRow == 0) = NaN;
+    R.coverage1Tglobal = mean(reshape(obs1Tcumul(landmask), [], nFreqComb), 1);
     R.coverage2Tglobal = mean(reshape(obs2Tcumul(landmask), [], nFreqComb), 1);
 
     %% Tx-combination metrics
