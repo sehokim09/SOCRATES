@@ -1,4 +1,4 @@
-function createFoM(projName, DesignParamsObj, performTag)
+function createFoM(projName, DesignParamsObj, performTag, useParallel)
 % function createFoM
 %
 %   Read performance and cost NetCDF files and save FoM_[projName].mat
@@ -7,7 +7,13 @@ function createFoM(projName, DesignParamsObj, performTag)
 %   performTag (optional, default "SAI") selects <constellation>_perform_<tag>.nc,
 %   the run tag of the project's Inp_SAI.txt (e.g. "SAI2610").
 %
-%   Raw case-by-case results are written directly to the MAT file.
+%   useParallel (optional, default false) computes the cases in a parfor loop:
+%   each case is saved to its own file in sim/<projName>/out/FoM_<projName>_cases/
+%   (the checkpoint; a re-run skips cases whose file exists), and the case files
+%   are merged into the MAT file once all of them exist. Without the Parallel
+%   Computing Toolbox the parfor loop runs serially.
+%
+%   Otherwise raw case-by-case results are written directly to the MAT file.
 %   Post-processing is performed only after all cases are completed.
 %
 %   Every coverage and revisit metric comes from obsFreq (bit k-1 = TxComb k,
@@ -39,6 +45,9 @@ function createFoM(projName, DesignParamsObj, performTag)
 
     if nargin < 3 || isempty(performTag)
         performTag = "SAI";
+    end
+    if nargin < 4 || isempty(useParallel)
+        useParallel = false;
     end
 
     %% Directories
@@ -133,6 +142,16 @@ function createFoM(projName, DesignParamsObj, performTag)
     %% Global attribute
     nCell = ncreadatt(fullfile(dir_spdata(1,1,1,1), filename_perform(1,1,1,1)), "/", "nCell");
 
+    %% Inputs shared by every case
+    P = struct('landmask', landmask, 'freqComb', freqComb, 'nCell', double(nCell), ...
+               'nWindow', nWindow, 'nCol', nCol, 'nRow', nRow, ...
+               'nFreqComb', nFreqComb, 'nTxComb', nTxComb, ...
+               'windowHours1T', windowHours1T, 'windowHours2T', windowHours2T);
+    P.TxCombName = TxCombName;
+    costFile = dir_spdata + filesep + filename_cost;
+    performFile = dir_spdata + filesep + filename_perform;
+    nCaseTotal = nNrx * nAlt * nInc * nNplane;
+
     %% Initialize MAT file if it does not exist
     if ~isfile(filepath_out)
         fprintf('Creating MAT checkpoint file: %s\n', filepath_out);
@@ -144,15 +163,11 @@ function createFoM(projName, DesignParamsObj, performTag)
         nLaunch = zeros(nNrx, nAlt, nInc, nNplane);
 
         SSC = zeros(nNrx, nAlt, nInc, nNplane, nTxComb);
-        coverageMap = zeros(nNrx, nAlt, nInc, nNplane, nCol, nRow);
 
         coverage1T1st = zeros(nNrx, nAlt, nInc, nNplane, nWindow, nFreqComb);
         coverage1T2nd = zeros(nNrx, nAlt, nInc, nNplane, nWindow, nFreqComb);
         coverage2T1st = zeros(nNrx, nAlt, nInc, nNplane, nWindow/2, nFreqComb);
         coverage2T2nd = zeros(nNrx, nAlt, nInc, nNplane, nWindow/2, nFreqComb);
-
-        coverageMap1T = zeros(nNrx, nAlt, nInc, nNplane, nCol, nRow, nFreqComb);
-        coverageMap2T = zeros(nNrx, nAlt, nInc, nNplane, nCol, nRow, nFreqComb);
 
         coverage1Tzonal = zeros(nNrx, nAlt, nInc, nNplane, nRow, nFreqComb);
         coverage1Tglobal = zeros(nNrx, nAlt, nInc, nNplane, nFreqComb);
@@ -178,9 +193,8 @@ function createFoM(projName, DesignParamsObj, performTag)
         save(filepath_out, ...
             'nRx', 'alt', 'inc', 'nPlane', 'TxCombName', 'consName', ...
             'costSats', 'costDedicated', 'costRideshare', 'launchOption', 'nLaunch', ...
-            'SSC', 'coverageMap', ...
+            'SSC', ...
             'coverage1T1st', 'coverage1T2nd', 'coverage2T1st', 'coverage2T2nd', ...
-            'coverageMap1T', 'coverageMap2T', ...
             'coverage1Tzonal', 'coverage1Tglobal', 'coverage2Tzonal', 'coverage2Tglobal', ...
             'SRT1T', 'SRT2T', ...
             'MRT1T', 'MRT2T', 'Nmulti1T', 'Nmulti2T', ...
@@ -193,14 +207,64 @@ function createFoM(projName, DesignParamsObj, performTag)
     M = matfile(filepath_out, 'Writable', true);
 
     %% Progress tracker
-    nCaseTotal = nNrx * nAlt * nInc * nNplane;
     nCaseDone0 = nnz(M.caseDone);
     fprintf('Initial progress: %d / %d cases completed (%.2f%%)\n', ...
         nCaseDone0, nCaseTotal, 100 * nCaseDone0 / nCaseTotal);
-    
+
     %% Main loop
     if M.loopComplete
         fprintf('All raw cases were already completed. Skipping raw loop.\n');
+    elseif useParallel
+        %% Parallel: one checkpoint file per case, merged once all exist
+        caseDir = fullfile(dir_out, sprintf('FoM_%s_cases', projName));
+        if ~exist(caseDir, 'dir')
+            mkdir(caseDir);
+        end
+        caseFile = string(caseDir) + filesep + consName + ".mat";
+        todo = find(~arrayfun(@isfile, caseFile));
+        fprintf('Parallel run: %d of %d cases to compute; finished cases are kept in %s\n', ...
+            numel(todo), nCaseTotal, caseDir);
+
+        ok = false(size(todo));
+        msg = cell(size(todo));
+        caseTodo = caseFile(todo);
+        costTodo = costFile(todo);
+        performTodo = performFile(todo);
+        parfor k = 1:numel(todo)
+            try
+                saveCaseFile(caseTodo(k), fomCase(costTodo(k), performTodo(k), P));
+                ok(k) = true;
+            catch ME
+                msg{k} = ME.message;
+            end
+        end
+        for k = reshape(find(~ok), 1, [])
+            warning('Case %s failed: %s', consName(todo(k)), msg{k});
+        end
+        if ~all(arrayfun(@isfile, caseFile), 'all')
+            fprintf('Some cases are still missing. Skipping post-processing; re-run createFoM to compute them.\n');
+            return;
+        end
+
+        fprintf('All %d cases computed. Merging the case files into %s\n', nCaseTotal, filepath_out);
+        R = load(caseFile(1));
+        fields = fieldnames(R);
+        A = struct();
+        for f = 1:numel(fields)
+            A.(fields{f}) = zeros(nCaseTotal, numel(R.(fields{f})));
+        end
+        for ic = 1:nCaseTotal
+            R = load(caseFile(ic));
+            for f = 1:numel(fields)
+                A.(fields{f})(ic, :) = R.(fields{f})(:).';
+            end
+        end
+        for f = 1:numel(fields)
+            M.(fields{f}) = reshape(A.(fields{f}), [nNrx, nAlt, nInc, nNplane, caseSize(R.(fields{f}))]);
+        end
+        M.caseDone = true(nNrx, nAlt, nInc, nNplane);
+        M.loopComplete = true;
+        fprintf('All raw cases are complete.\n');
     else
         for iNrx = 1:nNrx
             for iAlt = 1:nAlt
@@ -208,13 +272,13 @@ function createFoM(projName, DesignParamsObj, performTag)
                     for iNplane = 1:nNplane
                         caseLinearIdx = sub2ind([nNrx, nAlt, nInc, nNplane], ...
                             iNrx, iAlt, iInc, iNplane);
-    
+
                         nDoneNow = nnz(M.caseDone);
                         progressPct = 100 * nDoneNow / nCaseTotal;
-    
+
                         currentDir = char(dir_spdata(iNrx,iAlt,iInc,iNplane));
                         currentConsName = char(consName(iNrx,iAlt,iInc,iNplane));
-    
+
                         fprintf('\n============================================================\n');
                         fprintf('Case %d / %d\n', caseLinearIdx, nCaseTotal);
                         fprintf('Completed so far: %d / %d (%.2f%%)\n', ...
@@ -224,224 +288,72 @@ function createFoM(projName, DesignParamsObj, performTag)
                         fprintf('Indices: iNrx=%d, iAlt=%d, iInc=%d, iNplane=%d\n', ...
                             iNrx, iAlt, iInc, iNplane);
                         fprintf('============================================================\n');
-    
+
                         if M.caseDone(iNrx, iAlt, iInc, iNplane)
                             fprintf('Status: already completed. Skipping this case.\n');
                             continue;
                         end
-    
+
                         fprintf('Status: running this case now.\n');
 
                         try
-                            %% Cost
-                            cost = ncread( ...
-                                fullfile(dir_spdata(iNrx,iAlt,iInc,iNplane), ...
-                                filename_cost(iNrx,iAlt,iInc,iNplane)), "cost");
-
-                            tmpCostSats = cost(1) / 1e6;
-                            tmpCostDedicated = cost(2) / 1e6;
-                            tmpCostRideshare = cost(3) / 1e6;
-                            tmpLaunchOption = cost(4);
-                            tmpNLaunch = cost(5);
-
-                            %% Observable frequencies
-                            obsFreq1T = ncread( ...
-                                fullfile(dir_spdata(iNrx,iAlt,iInc,iNplane), ...
-                                filename_perform(iNrx,iAlt,iInc,iNplane)), "obsFreq");
-
-                            obsFreq2T = zeros(nCol, nRow, nWindow/2, 'like', obsFreq1T);
-                            for iWindow = 1:nWindow/2
-                                obsFreq2T(:,:,iWindow) = bitor(obsFreq1T(:,:,2*iWindow-1), ...
-                                                               obsFreq1T(:,:,2*iWindow));
-                            end
-
-                            obsFreqCumul = zeros(nCol, nRow, 'like', obsFreq1T);
-                            for iWindow = 1:nWindow
-                                obsFreqCumul = bitor(obsFreq1T(:,:,iWindow), obsFreqCumul);
-                            end
-                            tmpCoverageMap = obsFreqCumul;
-
-                            %% MRT and Nmulti
-                            %   MRT [days]: per land cell m_i = T_sim / max(N_i, 1), N_i the number
-                            %   of windows in which the cell saw every frequency of the combination
-                            %   (a cell never observed counts as T_sim); MRT is the mean of m_i over
-                            %   land cells. Nmulti: land cells observed in at least two windows.
-                            tmpMRT1T = nan(1, nFreqComb);
-                            tmpMRT2T = nan(1, nFreqComb);
-                            tmpNmulti1T = zeros(1, nFreqComb);
-                            tmpNmulti2T = zeros(1, nFreqComb);
-                            for iFreq = 1:nFreqComb
-                                landmaskVec = reshape(landmask(:,:,iFreq), [], 1);
-                                [tmpMRT1T(iFreq), tmpNmulti1T(iFreq)] = revisitTimeWindows( ...
-                                    bitand(obsFreq1T, freqComb(iFreq)) == freqComb(iFreq), windowHours1T, landmaskVec);
-                                [tmpMRT2T(iFreq), tmpNmulti2T(iFreq)] = revisitTimeWindows( ...
-                                    bitand(obsFreq2T, freqComb(iFreq)) == freqComb(iFreq), windowHours2T, landmaskVec);
-                            end
-
-                            %% 1T coverage
-                            obs1Tcumul = zeros(nCol, nRow, nFreqComb);
-                            tmpCoverage1T1st = zeros(nWindow, nFreqComb);
-                            tmpCoverage1T2nd = zeros(nWindow, nFreqComb);
-
-                            for iWindow = 1:nWindow
-                                for iFreq = 1:nFreqComb
-                                    flagObs = bitand(obsFreq1T(:,:,iWindow), freqComb(iFreq)) == freqComb(iFreq);
-                                    obs1Tcumul(:,:,iFreq) = obs1Tcumul(:,:,iFreq) + flagObs;
-                                    tmpCoverage1T1st(iWindow, iFreq) = sum(obs1Tcumul(:,:,iFreq) > 0, 'all');
-                                    tmpCoverage1T2nd(iWindow, iFreq) = sum(obs1Tcumul(:,:,iFreq) > 1, 'all');
-                                end
-                            end
-
-                            tmpCoverage1T1st = tmpCoverage1T1st / double(nCell) * 100;
-                            tmpCoverage1T2nd = tmpCoverage1T2nd / double(nCell) * 100;
-                            tmpCoverageMap1T = obs1Tcumul;
-
-                            tmpCoverage1Tzonal = zeros(nRow, nFreqComb);
-                            for iRow = 1:nRow
-                                for iFreq = 1:nFreqComb
-                                    idx = landmask(:, iRow, iFreq);
-                                    if any(idx)
-                                        tmpCoverage1Tzonal(iRow, iFreq) = mean(obs1Tcumul(idx, iRow, iFreq));
-                                    else
-                                        tmpCoverage1Tzonal(iRow, iFreq) = NaN;
-                                    end
-                                end
-                            end
-                            tmpCoverage1Tglobal = mean(reshape(obs1Tcumul(landmask), [], nFreqComb), 1);
-
-                            %% 2T coverage
-                            obs2Tcumul = zeros(nCol, nRow, nFreqComb);
-                            tmpCoverage2T1st = zeros(nWindow/2, nFreqComb);
-                            tmpCoverage2T2nd = zeros(nWindow/2, nFreqComb);
-
-                            for iWindow = 1:nWindow/2
-                                for iFreq = 1:nFreqComb
-                                    flagObs = bitand(obsFreq2T(:,:,iWindow), freqComb(iFreq)) == freqComb(iFreq);
-                                    obs2Tcumul(:,:,iFreq) = obs2Tcumul(:,:,iFreq) + flagObs;
-                                    tmpCoverage2T1st(iWindow, iFreq) = sum(obs2Tcumul(:,:,iFreq) > 0, 'all');
-                                    tmpCoverage2T2nd(iWindow, iFreq) = sum(obs2Tcumul(:,:,iFreq) > 1, 'all');
-                                end
-                            end
-
-                            tmpCoverage2T1st = tmpCoverage2T1st / double(nCell) * 100;
-                            tmpCoverage2T2nd = tmpCoverage2T2nd / double(nCell) * 100;
-                            tmpCoverageMap2T = obs2Tcumul;
-
-                            tmpCoverage2Tzonal = zeros(nRow, nFreqComb);
-                            for iRow = 1:nRow
-                                for iFreq = 1:nFreqComb
-                                    idx = landmask(:, iRow, iFreq);
-                                    if any(idx)
-                                        tmpCoverage2Tzonal(iRow, iFreq) = mean(obs2Tcumul(idx, iRow, iFreq));
-                                    else
-                                        tmpCoverage2Tzonal(iRow, iFreq) = NaN;
-                                    end
-                                end
-                            end
-                            tmpCoverage2Tglobal = mean(reshape(obs2Tcumul(landmask), [], nFreqComb), 1);
-
-                            %% Tx-combination metrics
-                            tmpSSC = zeros(1, nTxComb);
-                            tmpSRT1T = nan(1, nTxComb);
-                            tmpSRT2T = nan(1, nTxComb);
-                            tmpNSpValid = zeros(1, nTxComb);
-                            tmpNSpInvalid = zeros(1, nTxComb);
-                            tmpNSpRatio = zeros(1, nTxComb);
-
-                            landmaskVec = reshape(landmask(:,:,1), [], 1);
-                            for iTxComb = 1:nTxComb
-                                txBit = 2^(iTxComb-1);      % obsFreq bit of this TxComb
-
-                                % Coverage: grid cells observed in any window
-                                tmpSSC(iTxComb) = nnz(bitand(obsFreqCumul, txBit)) / double(nCell) * 100;
-
-                                % SRT [days]: the MRT definition applied to this TxComb alone
-                                tmpSRT1T(iTxComb) = revisitTimeWindows(bitand(obsFreq1T, txBit) ~= 0, windowHours1T, landmaskVec);
-                                tmpSRT2T(iTxComb) = revisitTimeWindows(bitand(obsFreq2T, txBit) ~= 0, windowHours2T, landmaskVec);
-
-                                nValid = ncread( ...
-                                    fullfile(dir_spdata(iNrx,iAlt,iInc,iNplane), ...
-                                    filename_perform(iNrx,iAlt,iInc,iNplane)), ...
-                                    strcat("nSpValid_", TxCombName{iTxComb}));
-
-                                nInvalid = ncread( ...
-                                    fullfile(dir_spdata(iNrx,iAlt,iInc,iNplane), ...
-                                    filename_perform(iNrx,iAlt,iInc,iNplane)), ...
-                                    strcat("nSpInvalid_", TxCombName{iTxComb}));
-
-                                tmpNSpValid(iTxComb) = nValid;
-                                tmpNSpInvalid(iTxComb) = nInvalid;
-
-                                if (nValid + nInvalid) == 0
-                                    tmpNSpRatio(iTxComb) = NaN;
-                                else
-                                    tmpNSpRatio(iTxComb) = nValid / (nValid + nInvalid);
-                                end
-                            end
+                            R = fomCase(costFile(caseLinearIdx), performFile(caseLinearIdx), P);
 
                             fprintf('Computation finished. Writing results to MAT file...\n');
 
                             %% Write this case immediately to MAT file
-                            M.costSats(iNrx,iAlt,iInc,iNplane) = tmpCostSats;
-                            M.costDedicated(iNrx,iAlt,iInc,iNplane) = tmpCostDedicated;
-                            M.costRideshare(iNrx,iAlt,iInc,iNplane) = tmpCostRideshare;
-                            M.launchOption(iNrx,iAlt,iInc,iNplane) = tmpLaunchOption;
-                            M.nLaunch(iNrx,iAlt,iInc,iNplane) = tmpNLaunch;
-                            
-                            M.coverageMap(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(tmpCoverageMap, [1 1 1 1 nCol nRow]);
-                            
+                            M.costSats(iNrx,iAlt,iInc,iNplane) = R.costSats;
+                            M.costDedicated(iNrx,iAlt,iInc,iNplane) = R.costDedicated;
+                            M.costRideshare(iNrx,iAlt,iInc,iNplane) = R.costRideshare;
+                            M.launchOption(iNrx,iAlt,iInc,iNplane) = R.launchOption;
+                            M.nLaunch(iNrx,iAlt,iInc,iNplane) = R.nLaunch;
+
                             M.coverage1T1st(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(tmpCoverage1T1st, [1 1 1 1 nWindow nFreqComb]);
+                                reshape(R.coverage1T1st, [1 1 1 1 nWindow nFreqComb]);
                             M.coverage1T2nd(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(tmpCoverage1T2nd, [1 1 1 1 nWindow nFreqComb]);
-                            
+                                reshape(R.coverage1T2nd, [1 1 1 1 nWindow nFreqComb]);
+
                             M.coverage2T1st(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(tmpCoverage2T1st, [1 1 1 1 nWindow/2 nFreqComb]);
+                                reshape(R.coverage2T1st, [1 1 1 1 nWindow/2 nFreqComb]);
                             M.coverage2T2nd(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(tmpCoverage2T2nd, [1 1 1 1 nWindow/2 nFreqComb]);
-                            
-                            M.coverageMap1T(iNrx,iAlt,iInc,iNplane,:,:,:) = ...
-                                reshape(tmpCoverageMap1T, [1 1 1 1 nCol nRow nFreqComb]);
-                            M.coverageMap2T(iNrx,iAlt,iInc,iNplane,:,:,:) = ...
-                                reshape(tmpCoverageMap2T, [1 1 1 1 nCol nRow nFreqComb]);
-                            
+                                reshape(R.coverage2T2nd, [1 1 1 1 nWindow/2 nFreqComb]);
+
                             M.coverage1Tzonal(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(tmpCoverage1Tzonal, [1 1 1 1 nRow nFreqComb]);
+                                reshape(R.coverage1Tzonal, [1 1 1 1 nRow nFreqComb]);
                             M.coverage1Tglobal(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpCoverage1Tglobal, [1 1 1 1 nFreqComb]);
-                            
+                                reshape(R.coverage1Tglobal, [1 1 1 1 nFreqComb]);
+
                             M.coverage2Tzonal(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(tmpCoverage2Tzonal, [1 1 1 1 nRow nFreqComb]);
+                                reshape(R.coverage2Tzonal, [1 1 1 1 nRow nFreqComb]);
                             M.coverage2Tglobal(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpCoverage2Tglobal, [1 1 1 1 nFreqComb]);
-                            
+                                reshape(R.coverage2Tglobal, [1 1 1 1 nFreqComb]);
+
                             M.SSC(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpSSC, [1 1 1 1 nTxComb]);
-                            
+                                reshape(R.SSC, [1 1 1 1 nTxComb]);
+
                             M.SRT1T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpSRT1T, [1 1 1 1 nTxComb]);
+                                reshape(R.SRT1T, [1 1 1 1 nTxComb]);
                             M.SRT2T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpSRT2T, [1 1 1 1 nTxComb]);
-                            
+                                reshape(R.SRT2T, [1 1 1 1 nTxComb]);
+
                             M.nSpValid(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpNSpValid, [1 1 1 1 nTxComb]);
+                                reshape(R.nSpValid, [1 1 1 1 nTxComb]);
                             M.nSpInvalid(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpNSpInvalid, [1 1 1 1 nTxComb]);
+                                reshape(R.nSpInvalid, [1 1 1 1 nTxComb]);
                             M.nSpRatio(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpNSpRatio, [1 1 1 1 nTxComb]);
+                                reshape(R.nSpRatio, [1 1 1 1 nTxComb]);
 
                             M.MRT1T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpMRT1T, [1 1 1 1 nFreqComb]);
+                                reshape(R.MRT1T, [1 1 1 1 nFreqComb]);
 
                             M.MRT2T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpMRT2T, [1 1 1 1 nFreqComb]);
-                            
+                                reshape(R.MRT2T, [1 1 1 1 nFreqComb]);
+
                             M.Nmulti1T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpNmulti1T, [1 1 1 1 nFreqComb]);
-                            
+                                reshape(R.Nmulti1T, [1 1 1 1 nFreqComb]);
+
                             M.Nmulti2T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(tmpNmulti2T, [1 1 1 1 nFreqComb]);
+                                reshape(R.Nmulti2T, [1 1 1 1 nFreqComb]);
 
                             fprintf('MAT file write finished. Marking this case as complete...\n');
 
@@ -452,7 +364,7 @@ function createFoM(projName, DesignParamsObj, performTag)
 
                             nDoneAfter = nnz(M.caseDone);
                             progressPctAfter = 100 * nDoneAfter / nCaseTotal;
-    
+
                             fprintf('Case completed successfully.\n');
                             fprintf('Updated progress: %d / %d (%.2f%%)\n', ...
                                 nDoneAfter, nCaseTotal, progressPctAfter);
@@ -567,5 +479,163 @@ function [rtDays, nMulti] = revisitTimeWindows(obsMask, windowHours, landmaskVec
         rtDays = NaN;
     else
         rtDays = mean(Tsim ./ max(double(N), 1)) / 24;
+    end
+end
+
+function R = fomCase(costFile, performFile, P)
+% FOMCASE  FoMs of one constellation from its cost and performance files.
+%
+%   Every field of R is the per-case value of the FoM variable of the same
+%   name in FoM_<projName>.mat; P holds the inputs shared by all cases.
+    nWindow = P.nWindow;  nCol = P.nCol;  nRow = P.nRow;
+    nFreqComb = P.nFreqComb;  nTxComb = P.nTxComb;  freqComb = P.freqComb;
+    landmask = P.landmask;  nCell = P.nCell;
+
+    %% Cost
+    cost = ncread(costFile, "cost");
+    R.costSats = cost(1) / 1e6;
+    R.costDedicated = cost(2) / 1e6;
+    R.costRideshare = cost(3) / 1e6;
+    R.launchOption = cost(4);
+    R.nLaunch = cost(5);
+
+    %% Observable frequencies
+    obsFreq1T = ncread(performFile, "obsFreq");
+
+    obsFreq2T = zeros(nCol, nRow, nWindow/2, 'like', obsFreq1T);
+    for iWindow = 1:nWindow/2
+        obsFreq2T(:,:,iWindow) = bitor(obsFreq1T(:,:,2*iWindow-1), ...
+                                       obsFreq1T(:,:,2*iWindow));
+    end
+
+    obsFreqCumul = zeros(nCol, nRow, 'like', obsFreq1T);
+    for iWindow = 1:nWindow
+        obsFreqCumul = bitor(obsFreq1T(:,:,iWindow), obsFreqCumul);
+    end
+
+    %% MRT and Nmulti
+    %   MRT [days]: per land cell m_i = T_sim / max(N_i, 1), N_i the number
+    %   of windows in which the cell saw every frequency of the combination
+    %   (a cell never observed counts as T_sim); MRT is the mean of m_i over
+    %   land cells. Nmulti: land cells observed in at least two windows.
+    R.MRT1T = nan(1, nFreqComb);
+    R.MRT2T = nan(1, nFreqComb);
+    R.Nmulti1T = zeros(1, nFreqComb);
+    R.Nmulti2T = zeros(1, nFreqComb);
+    for iFreq = 1:nFreqComb
+        landmaskVec = reshape(landmask(:,:,iFreq), [], 1);
+        [R.MRT1T(iFreq), R.Nmulti1T(iFreq)] = revisitTimeWindows( ...
+            bitand(obsFreq1T, freqComb(iFreq)) == freqComb(iFreq), P.windowHours1T, landmaskVec);
+        [R.MRT2T(iFreq), R.Nmulti2T(iFreq)] = revisitTimeWindows( ...
+            bitand(obsFreq2T, freqComb(iFreq)) == freqComb(iFreq), P.windowHours2T, landmaskVec);
+    end
+
+    %% 1T coverage
+    obs1Tcumul = zeros(nCol, nRow, nFreqComb);
+    R.coverage1T1st = zeros(nWindow, nFreqComb);
+    R.coverage1T2nd = zeros(nWindow, nFreqComb);
+
+    for iWindow = 1:nWindow
+        for iFreq = 1:nFreqComb
+            flagObs = bitand(obsFreq1T(:,:,iWindow), freqComb(iFreq)) == freqComb(iFreq);
+            obs1Tcumul(:,:,iFreq) = obs1Tcumul(:,:,iFreq) + flagObs;
+            R.coverage1T1st(iWindow, iFreq) = sum(obs1Tcumul(:,:,iFreq) > 0, 'all');
+            R.coverage1T2nd(iWindow, iFreq) = sum(obs1Tcumul(:,:,iFreq) > 1, 'all');
+        end
+    end
+
+    R.coverage1T1st = R.coverage1T1st / double(nCell) * 100;
+    R.coverage1T2nd = R.coverage1T2nd / double(nCell) * 100;
+
+    R.coverage1Tzonal = zeros(nRow, nFreqComb);
+    for iRow = 1:nRow
+        for iFreq = 1:nFreqComb
+            idx = landmask(:, iRow, iFreq);
+            if any(idx)
+                R.coverage1Tzonal(iRow, iFreq) = mean(obs1Tcumul(idx, iRow, iFreq));
+            else
+                R.coverage1Tzonal(iRow, iFreq) = NaN;
+            end
+        end
+    end
+    R.coverage1Tglobal = mean(reshape(obs1Tcumul(landmask), [], nFreqComb), 1);
+
+    %% 2T coverage
+    obs2Tcumul = zeros(nCol, nRow, nFreqComb);
+    R.coverage2T1st = zeros(nWindow/2, nFreqComb);
+    R.coverage2T2nd = zeros(nWindow/2, nFreqComb);
+
+    for iWindow = 1:nWindow/2
+        for iFreq = 1:nFreqComb
+            flagObs = bitand(obsFreq2T(:,:,iWindow), freqComb(iFreq)) == freqComb(iFreq);
+            obs2Tcumul(:,:,iFreq) = obs2Tcumul(:,:,iFreq) + flagObs;
+            R.coverage2T1st(iWindow, iFreq) = sum(obs2Tcumul(:,:,iFreq) > 0, 'all');
+            R.coverage2T2nd(iWindow, iFreq) = sum(obs2Tcumul(:,:,iFreq) > 1, 'all');
+        end
+    end
+
+    R.coverage2T1st = R.coverage2T1st / double(nCell) * 100;
+    R.coverage2T2nd = R.coverage2T2nd / double(nCell) * 100;
+
+    R.coverage2Tzonal = zeros(nRow, nFreqComb);
+    for iRow = 1:nRow
+        for iFreq = 1:nFreqComb
+            idx = landmask(:, iRow, iFreq);
+            if any(idx)
+                R.coverage2Tzonal(iRow, iFreq) = mean(obs2Tcumul(idx, iRow, iFreq));
+            else
+                R.coverage2Tzonal(iRow, iFreq) = NaN;
+            end
+        end
+    end
+    R.coverage2Tglobal = mean(reshape(obs2Tcumul(landmask), [], nFreqComb), 1);
+
+    %% Tx-combination metrics
+    R.SSC = zeros(1, nTxComb);
+    R.SRT1T = nan(1, nTxComb);
+    R.SRT2T = nan(1, nTxComb);
+    R.nSpValid = zeros(1, nTxComb);
+    R.nSpInvalid = zeros(1, nTxComb);
+    R.nSpRatio = zeros(1, nTxComb);
+
+    landmaskVec = reshape(landmask(:,:,1), [], 1);
+    for iTxComb = 1:nTxComb
+        txBit = 2^(iTxComb-1);      % obsFreq bit of this TxComb
+
+        % Coverage: grid cells observed in any window
+        R.SSC(iTxComb) = nnz(bitand(obsFreqCumul, txBit)) / double(nCell) * 100;
+
+        % SRT [days]: the MRT definition applied to this TxComb alone
+        R.SRT1T(iTxComb) = revisitTimeWindows(bitand(obsFreq1T, txBit) ~= 0, P.windowHours1T, landmaskVec);
+        R.SRT2T(iTxComb) = revisitTimeWindows(bitand(obsFreq2T, txBit) ~= 0, P.windowHours2T, landmaskVec);
+
+        nValid = ncread(performFile, strcat("nSpValid_", P.TxCombName{iTxComb}));
+        nInvalid = ncread(performFile, strcat("nSpInvalid_", P.TxCombName{iTxComb}));
+
+        R.nSpValid(iTxComb) = nValid;
+        R.nSpInvalid(iTxComb) = nInvalid;
+
+        if (nValid + nInvalid) == 0
+            R.nSpRatio(iTxComb) = NaN;
+        else
+            R.nSpRatio(iTxComb) = nValid / (nValid + nInvalid);
+        end
+    end
+end
+
+function saveCaseFile(file, R)
+% SAVECASEFILE  Write one case's FoMs; the rename makes an interrupted write
+%   leave no file behind, so a re-run computes that case again.
+    tmp = file + ".tmp.mat";
+    save(tmp, '-struct', 'R');
+    movefile(tmp, file);
+end
+
+function sz = caseSize(v)
+% CASESIZE  Trailing dimensions of a per-case value in the FoM arrays: a row
+%   vector [1 n] is stored as n, a scalar adds no dimension.
+    sz = size(v);
+    if sz(1) == 1
+        sz(1) = [];
     end
 end
