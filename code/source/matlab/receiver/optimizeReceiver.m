@@ -271,27 +271,31 @@ function [payload, info] = optimizeReceiver(opts)
 
     Scdf = load(opts.cdfFile);
 
+    % Each geometry file is read once, keeping every STRIDE(ib)-th observation of band ib
+    RAW = cell(1, nGrp);
+    for ig = 1:nGrp
+        RAW{ig} = localReadGeom(GEOM(ig).file, BAND, STRIDE);
+    end
+
     PRE = struct();
     for ib = 1:nBand
         nm = BAND(ib);
         P = struct('rangeTR',[], 'rangeTS',[], 'rangeSR',[], 'theta',[], 'iR',[], 'iD',[], 'thR',[], 'thD',[], 'grp',[], 'altRef',[]);
         for ig = 1:nGrp
-            raw = readSpDataNc(GEOM(ig).file, ["ORBCOMM","UFO","MUOS","GPS"]);
-            T = raw.(nm);
-            if nm == "MUOS", T = T(logical(raw.flagSpotbeam),:); end
-            sel = 1:STRIDE(ib):height(T);
+            T = RAW{ig}.(nm);
+            nObs = numel(T.rangeTR);
             aRef = GEOM(ig).alt_m;
-            theta = asin(min(1, max(-1, (R_E+aRef)*sin(T.lookAngElR(sel))/R_E)));
+            theta = asin(min(1, max(-1, (R_E+aRef)*sin(T.lookAngElR)/R_E)));
             theta(~isfinite(theta)) = pi/2;
-            P.rangeTR = [P.rangeTR; T.rangeTR(sel)];  P.rangeTS = [P.rangeTS; T.rangeTS(sel)];
-            P.rangeSR = [P.rangeSR; T.rangeSR(sel)];  P.theta   = [P.theta; theta];
+            P.rangeTR = [P.rangeTR; T.rangeTR];  P.rangeTS = [P.rangeTS; T.rangeTS];
+            P.rangeSR = [P.rangeSR; T.rangeSR];  P.theta   = [P.theta; theta];
             % linear grid indices of the two arrival directions, nadir frame;
             % the direct arrival is read at its stored angle (back hemisphere)
-            P.iR = [P.iR; localGridIndex(T.lookAngElR(sel), T.lookAngAzR(sel), RES_DEG)];
-            P.iD = [P.iD; localGridIndex(T.lookAngElD(sel), T.lookAngAzD(sel), RES_DEG)];
-            P.thR = [P.thR; T.lookAngElR(sel)];  P.thD = [P.thD; T.lookAngElD(sel)];   % nadir-frame arrival angles, rad
-            P.grp    = [P.grp;    ig*ones(numel(sel),1)];
-            P.altRef = [P.altRef; aRef*ones(numel(sel),1)];
+            P.iR = [P.iR; localGridIndex(T.lookAngElR, T.lookAngAzR, RES_DEG)];
+            P.iD = [P.iD; localGridIndex(T.lookAngElD, T.lookAngAzD, RES_DEG)];
+            P.thR = [P.thR; T.lookAngElR];  P.thD = [P.thD; T.lookAngElD];   % nadir-frame arrival angles, rad
+            P.grp    = [P.grp;    ig*ones(nObs,1)];
+            P.altRef = [P.altRef; aRef*ones(nObs,1)];
         end
         P.n = numel(P.grp);
         P.nGrp = nGrp;
@@ -1058,4 +1062,27 @@ end
 function off = localOffIP(K)
 % LOCALOFFIP  Equal-footprint dwell offsets of the three I/P bands (zeros if absent).
     if isfield(K, 'OFF_IP'), off = K.OFF_IP; else, off = zeros(1,3); end
+end
+
+function G = localReadGeom(file, BAND, STRIDE)
+% LOCALREADGEOM  The specular-point columns the optimizer uses from one file:
+%   every STRIDE(ib)-th observation of band ib. UFO and MUOS share the MUOS
+%   variables (MUOS keeps the spot-beam rows), so those are read whole once;
+%   the other bands are strided by ncread.
+    VARS = ["rangeTR" "rangeTS" "rangeSR" "lookAngAzD" "lookAngElD" "lookAngAzR" "lookAngElR"];
+    G = struct();
+    muos = struct();
+    if any(BAND == "UFO" | BAND == "MUOS")
+        for v = VARS, muos.(v) = ncread(file, v + "_MUOS"); end
+        spot = find(logical(ncread(file, "flagSpotbeam")));
+    end
+    for ib = 1:numel(BAND)
+        for v = VARS
+            switch BAND(ib)
+                case "UFO",  G.(BAND(ib)).(v) = muos.(v)(1:STRIDE(ib):end);
+                case "MUOS", G.(BAND(ib)).(v) = muos.(v)(spot(1:STRIDE(ib):end));
+                otherwise,   G.(BAND(ib)).(v) = ncread(file, v + "_" + BAND(ib), 1, Inf, STRIDE(ib));
+            end
+        end
+    end
 end
