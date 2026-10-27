@@ -140,7 +140,14 @@ function createInpDesign(projPath, DesignParamsObj)
 
     editTextFile(filepath,lines,texts,flagAdd);
 
-    % SAI Observation Model section at the end
+    % SAI Observation Model section at the end, right after the last line
+    % (the template ends with a blank line)
+    if ~isempty(model) || ~isempty(saiSection)
+        txt = regexprep(fileread(filepath), '(\r?\n)\s*$', '$1');
+        fid = fopen(filepath, 'w');
+        fwrite(fid, txt);
+        fclose(fid);
+    end
     if ~isempty(model)
         writeSaiSection(projPath, model, DesignParamsObj.receiver.runTag);
     elseif ~isempty(saiSection)
@@ -152,17 +159,29 @@ end
 
 function writeSaiSection(projPath, model, runTag)
 % WRITESAISECTION  Append the SAI Observation Model section to Inp_Design.txt
-%   and write the reflectivity CDF tables it names. Numbers are written with
+%   and write the reflectivity CDF tables it names, at their paths from the
+%   SOCRATES root (next to the .mat they come from). Numbers are written with
 %   %.17g, which round-trips a double exactly, so the C code starts from the
-%   values evaluateReceiver derived.
+%   values evaluateReceiver derived. A table that exists is kept, and must
+%   hold the same values.
     if strlength(runTag) == 0
         error('createInpDesign:noRunTag', 'receiver.runTag is empty; designReceiver sets it.');
     end
     ports = ["X" "Y" "L"];
+    if isfield(model, 'cdfName')
+        cdfName = model.cdfName;
+    else    % a model saved before the tables moved: they come from the default .mat
+        cdfName = "earthdata/reflectivity/reflectivity_CDF_v2_" + ports + ".txt";
+    end
     for ip = 1:3
-        fid = fopen(fullfile(projPath, sprintf('reflectivity_cdf_%s.txt', ports(ip))), 'w');
-        fprintf(fid, '%.17g, %.17g, %.17g, %.17g, %.17g\n', model.cdf.(ports(ip)).');
-        fclose(fid);
+        txt = sprintf('%.17g, %.17g, %.17g, %.17g, %.17g\n', model.cdf.(ports(ip)).');
+        if ~isfile(cdfName(ip))
+            fid = fopen(cdfName(ip), 'w');
+            fprintf(fid, '%s', txt);
+            fclose(fid);
+        elseif ~strcmp(fileread(cdfName(ip)), txt)
+            error('createInpDesign:cdfDiffers', '%s holds a different CDF table than receiver.model.', cdfName(ip));
+        end
     end
 
     fid = fopen(fullfile(projPath, 'Inp_Design.txt'), 'a');
@@ -174,9 +193,9 @@ function writeSaiSection(projPath, model, runTag)
     putLine(sprintf('%.17g', model.etaHV),       'eta_HV (dwell-averaged)');
     putLine(sprintf('%.17g', model.etaL),        'eta_L  (dwell-averaged)');
     putLine(sprintf('%.17g', model.dirLinLoss_dB), 'Direct-arm loss on linear ports [dB]');
-    putLine('reflectivity_cdf_X.txt',            'CDF file, port X (V)');
-    putLine('reflectivity_cdf_Y.txt',            'CDF file, port Y (H)');
-    putLine('reflectivity_cdf_L.txt',            'CDF file, port L (LHCP)');
+    putLine(cdfName(1),                          'CDF file, port X (V)');
+    putLine(cdfName(2),                          'CDF file, port Y (H)');
+    putLine(cdfName(3),                          'CDF file, port L (LHCP)');
     putLine('sai/',                              'Pattern subdirectory of ./ant_pat/');
     putLine(runTag,                              'Run tag: output file <constellation>_perform_<tag>.nc');
     putLine(sprintf('%d', model.nTx),            'Number of transmitters');

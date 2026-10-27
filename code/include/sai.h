@@ -97,9 +97,9 @@ typedef struct {
 } SaiDiag;
 
 /* Read the SAI_SECTION_MARKER section of an Inp_Design.txt (CDF files
-   resolved next to it) and the pattern files under antRoot/<pattern
-   subdirectory>. Returns 0 on success; on error prints the reason to
-   stderr and returns nonzero. */
+   resolved from the working directory, the SOCRATES root) and the pattern
+   files under antRoot/<pattern subdirectory>. Returns 0 on success; on
+   error prints the reason to stderr and returns nonzero. */
 int saiLoad(const char *designPath, const char *antRoot, SaiModel *M);
 void saiFree(SaiModel *M);
 

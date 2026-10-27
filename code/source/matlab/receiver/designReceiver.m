@@ -33,7 +33,8 @@ function [DesignParamsObj, res] = designReceiver(projName, DesignParamsObj, opts
 %     receiver.payload  the solved payload
 %     receiver.antenna  the antenna summary of the pattern files
 %     receiver.model    the SAI Observation Model that createInpDesign writes
-%                       into Inp_Design.txt for the C code
+%                       into Inp_Design.txt for the C code; its CDF tables
+%                       go next to cdfFile (<name>_X.txt, _Y.txt, _L.txt)
 %     receiver.runTag   set to the project name without its punctuation if empty
 %   res holds the results saved to Receiver_<projName>.mat: inputs, payload,
 %   info (optimizer), antenna, antTable, eval (evaluator results without
@@ -105,6 +106,9 @@ function [DesignParamsObj, res] = designReceiver(projName, DesignParamsObj, opts
         'patDir', opts.patDir, 'cdfFile', opts.cdfFile, ...
         'source', "optimizeReceiver " + info.generated, 'verbose', opts.verbose, ...
         'progressFcn', stage(0.31, 0.98, "3/3 evaluation")));
+    % The C code reads the CDF tables as text files next to opts.cdfFile
+    [cdfDir, cdfBase] = fileparts(opts.cdfFile);
+    R.model.cdfName = cdfDir + "/" + cdfBase + "_" + ["X" "Y" "L"] + ".txt";
 
     DesignParamsObj.receiver.payload = payload;
     DesignParamsObj.receiver.antenna = saiAnt;

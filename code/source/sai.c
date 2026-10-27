@@ -374,9 +374,8 @@ static double saiEtaBar(double eta, double Nincoh)
 int saiLoad(const char *designPath, const char *antRoot, SaiModel *M)
 {
     FILE *fp;
-    char inpDir[1024], path[1024], patDir[1024], patSub[256], line[512];
+    char patDir[1024], patSub[256], line[512];
     char cdfName[SAI_NSCORE][256], row[512], type[8], tag[40];
-    const char *slash;
     double nTx;
     int i, k, ip, n;
     const char *portName[SAI_NSCORE] = {"X", "Y", "L"};
@@ -386,9 +385,6 @@ int saiLoad(const char *designPath, const char *antRoot, SaiModel *M)
         fprintf(stderr, "saiLoad: cannot open %s\n", designPath);
         return -1;
     }
-    slash = strrchr(designPath, '/');
-    if (slash == NULL) snprintf(inpDir, sizeof inpDir, "./");
-    else snprintf(inpDir, sizeof inpDir, "%.*s", (int) (slash - designPath + 1), designPath);
 
     /* the section starts after its title line */
     do {
@@ -486,10 +482,10 @@ int saiLoad(const char *designPath, const char *antRoot, SaiModel *M)
     fclose(fp);
     if (i < M->nTx) goto truncated;
 
-    /* CDF tables, resolved next to Inp_Design.txt; one F grid for all ports */
+    /* CDF tables, paths from the SOCRATES root (earthdata/reflectivity/); one
+       F grid for all ports */
     for (ip = 0; ip < SAI_NSCORE; ip++) {
-        saiJoin(path, sizeof path, inpDir, cdfName[ip]);
-        if (saiLoadCdf(path, &M->cdf[ip])) { saiFree(M); return -1; }
+        if (saiLoadCdf(cdfName[ip], &M->cdf[ip])) { saiFree(M); return -1; }
         if (M->cdf[ip].n != M->cdf[0].n || memcmp(M->cdf[ip].F, M->cdf[0].F, M->cdf[0].n*sizeof(double))) {
             fprintf(stderr, "saiLoad: the F grid of port %s differs from that of port X\n", portName[ip]);
             saiFree(M);

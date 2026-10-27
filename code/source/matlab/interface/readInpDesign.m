@@ -150,7 +150,7 @@ function DesignParamsObj = readInpDesign(projPath)
         line = fgetl(fileID);
     end
     if ischar(line)
-        [DesignParamsObj.receiver.model, DesignParamsObj.receiver.runTag] = readSaiSection(fileID, projPath);
+        [DesignParamsObj.receiver.model, DesignParamsObj.receiver.runTag] = readSaiSection(fileID);
     end
     fclose(fileID);
     
@@ -177,7 +177,7 @@ function DesignParamsObj = readInpDesign(projPath)
     end
 end
 
-function [model, runTag] = readSaiSection(fileID, projPath)
+function [model, runTag] = readSaiSection(fileID)
 % READSAISECTION  SAI Observation Model section, after its title line, and
 %   the reflectivity CDF tables it names, as evaluateReceiver returns them
 %   in R.model.
@@ -209,10 +209,12 @@ function [model, runTag] = readSaiSection(fileID, projPath)
             'Nc', str2double(f(7)), 'TI_s', str2double(f(8)), 'Nincoh', str2double(f(9)), ...
             'spotbeam', f(10) == "1");
     end
-    % CDF tables: columns F, X137, X255, X370, X1575
+    % CDF tables: columns F, X137, X255, X370, X1575, at a path from the
+    % SOCRATES root (earthdata/reflectivity)
     ports = ["X" "Y" "L"];
+    model.cdfName = cdfName;
     for ip = 1:3
-        v = sscanf(strrep(fileread(fullfile(projPath, cdfName(ip))), ',', ' '), '%f');
+        v = sscanf(strrep(fileread(cdfName(ip)), ',', ' '), '%f');
         model.cdf.(ports(ip)) = reshape(v, 5, []).';
     end
 end
