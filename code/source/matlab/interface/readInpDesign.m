@@ -144,8 +144,14 @@ function DesignParamsObj = readInpDesign(projPath)
         end
     end
 
-    % The SAI Observation Model section that follows is written by
-    % export_socrates_inputs.m and kept as is by createInpDesign.
+    % SAI Observation Model (the receiver design; written by createInpDesign)
+    line = fgetl(fileID);
+    while ischar(line) && ~contains(line, "SAI Observation Model")
+        line = fgetl(fileID);
+    end
+    if ischar(line)
+        [DesignParamsObj.receiver.model, DesignParamsObj.receiver.runTag] = readSaiSection(fileID, projPath);
+    end
     fclose(fileID);
     
     % Initialize frequency combinations
@@ -168,5 +174,45 @@ function DesignParamsObj = readInpDesign(projPath)
     for iFreqComb = 2 : DesignParamsObj.nFreqComb
         DesignParamsObj.perform.MSC.score(iFreqComb) = DesignParamsObj.perform.MSC.score(1);
         DesignParamsObj.perform.MRT.score(iFreqComb) = DesignParamsObj.perform.MRT.score(1);
+    end
+end
+
+function [model, runTag] = readSaiSection(fileID, projPath)
+% READSAISECTION  SAI Observation Model section, after its title line, and
+%   the reflectivity CDF tables it names, as evaluateReceiver returns them
+%   in R.model.
+    value = @() strtrim(extractBefore(string(fgetl(fileID)), "!"));
+    model = struct();
+    model.source = value();
+    model.gamma = str2double(value());
+    model.WD = str2double(value());
+    model.etaHV = str2double(value());
+    model.etaL = str2double(value());
+    model.dirLinLoss_dB = str2double(value());
+    cdfName = [value(), value(), value()];
+    patSub = value();
+    if patSub ~= "sai/"
+        warning('readInpDesign:patSub', 'Pattern subdirectory %s; createInpDesign writes sai/.', patSub);
+    end
+    runTag = value();
+    model.nTx = str2double(value());
+    model.tx = struct('name', {}, 'type', {}, 'cdfCol', {}, 'patTag', {}, 'Glin_dBi', {}, ...
+                      'S0', {}, 'Nc', {}, 'TI_s', {}, 'Nincoh', {}, 'spotbeam', {});
+    while numel(model.tx) < model.nTx
+        line = strtrim(string(fgetl(fileID)));
+        if startsWith(line, "!") || strlength(line) == 0
+            continue
+        end
+        f = split(line);
+        model.tx(end+1) = struct('name', f(1), 'type', f(2), 'cdfCol', str2double(f(3)), ...
+            'patTag', f(4), 'Glin_dBi', str2double(f(5)), 'S0', str2double(f(6)), ...
+            'Nc', str2double(f(7)), 'TI_s', str2double(f(8)), 'Nincoh', str2double(f(9)), ...
+            'spotbeam', f(10) == "1");
+    end
+    % CDF tables: columns F, X137, X255, X370, X1575
+    ports = ["X" "Y" "L"];
+    for ip = 1:3
+        v = sscanf(strrep(fileread(fullfile(projPath, cdfName(ip))), ',', ' '), '%f');
+        model.cdf.(ports(ip)) = reshape(v, 5, []).';
     end
 end

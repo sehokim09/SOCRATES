@@ -27,11 +27,13 @@ function createInpDesign(projPath, DesignParamsObj)
     % Set paths
     refFilePath = fullfile(cd, 'code', 'source', 'matlab', 'interface', 'ref', 'Inp_Design.txt');
 
-    % Keep the SAI Observation Model section that export_socrates_inputs.m
-    % wrote at the end of an existing file; it is appended again below
+    % The SAI Observation Model section is written from receiver.model. Before
+    % the receiver is designed, the section at the end of an existing file is
+    % kept; it is appended again below
     filepath = fullfile(projPath, 'Inp_Design.txt');
+    model = DesignParamsObj.receiver.model;
     saiSection = strings(0, 1);
-    if isfile(filepath)
+    if isempty(model) && isfile(filepath)
         oldLines = readlines(filepath);
         iSai = find(contains(oldLines, "SAI Observation Model"), 1);
         if ~isempty(iSai)
@@ -138,10 +140,51 @@ function createInpDesign(projPath, DesignParamsObj)
 
     editTextFile(filepath,lines,texts,flagAdd);
 
-    % Put the SAI Observation Model section back at the end
-    if ~isempty(saiSection)
+    % SAI Observation Model section at the end
+    if ~isempty(model)
+        writeSaiSection(projPath, model, DesignParamsObj.receiver.runTag);
+    elseif ~isempty(saiSection)
         fid = fopen(filepath, 'a');
         fprintf(fid, '%s\n', saiSection);
         fclose(fid);
     end
+end
+
+function writeSaiSection(projPath, model, runTag)
+% WRITESAISECTION  Append the SAI Observation Model section to Inp_Design.txt
+%   and write the reflectivity CDF tables it names. Numbers are written with
+%   %.17g, which round-trips a double exactly, so the C code starts from the
+%   values evaluateReceiver derived.
+    if strlength(runTag) == 0
+        error('createInpDesign:noRunTag', 'receiver.runTag is empty; designReceiver sets it.');
+    end
+    ports = ["X" "Y" "L"];
+    for ip = 1:3
+        fid = fopen(fullfile(projPath, sprintf('reflectivity_cdf_%s.txt', ports(ip))), 'w');
+        fprintf(fid, '%.17g, %.17g, %.17g, %.17g, %.17g\n', model.cdf.(ports(ip)).');
+        fclose(fid);
+    end
+
+    fid = fopen(fullfile(projPath, 'Inp_Design.txt'), 'a');
+    putLine = @(val, cmt) fprintf(fid, '%-42s ! %s\n', val, cmt);
+    fprintf(fid, '=================== SAI Observation Model (designReceiver) ===================\n');
+    putLine(model.source,                        'Source and timestamp');
+    putLine(sprintf('%.17g', model.gamma),       'gamma');
+    putLine(sprintf('%.17g', model.WD),          'W_D');
+    putLine(sprintf('%.17g', model.etaHV),       'eta_HV (dwell-averaged)');
+    putLine(sprintf('%.17g', model.etaL),        'eta_L  (dwell-averaged)');
+    putLine(sprintf('%.17g', model.dirLinLoss_dB), 'Direct-arm loss on linear ports [dB]');
+    putLine('reflectivity_cdf_X.txt',            'CDF file, port X (V)');
+    putLine('reflectivity_cdf_Y.txt',            'CDF file, port Y (H)');
+    putLine('reflectivity_cdf_L.txt',            'CDF file, port L (LHCP)');
+    putLine('sai/',                              'Pattern subdirectory of ./ant_pat/');
+    putLine(runTag,                              'Run tag: output file <constellation>_perform_<tag>.nc');
+    putLine(sprintf('%d', model.nTx),            'Number of transmitters');
+    fprintf(fid, '! name  type  cdfCol  patTag  Glin_dBi  S0  Nc  TI_s  Nincoh  spotbeam\n');
+    for iTx = 1:model.nTx
+        t = model.tx(iTx);
+        fprintf(fid, '%-8s %-5s %d %-16s %.17g %.17g %.17g %.17g %.17g %d\n', ...
+            t.name, t.type, t.cdfCol, t.patTag, t.Glin_dBi, t.S0, t.Nc, t.TI_s, t.Nincoh, t.spotbeam);
+    end
+    fclose(fid);
 end
