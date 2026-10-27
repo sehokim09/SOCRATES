@@ -327,58 +327,9 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
                             tCompute = toc(tCase);
 
                             %% Write this case immediately to MAT file
-                            M.costSats(iNrx,iAlt,iInc,iNplane) = R.costSats;
-                            M.costDedicated(iNrx,iAlt,iInc,iNplane) = R.costDedicated;
-                            M.costRideshare(iNrx,iAlt,iInc,iNplane) = R.costRideshare;
-                            M.launchOption(iNrx,iAlt,iInc,iNplane) = R.launchOption;
-                            M.nLaunch(iNrx,iAlt,iInc,iNplane) = R.nLaunch;
-
-                            M.coverage1T1st(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(R.coverage1T1st, [1 1 1 1 nWindow nFreqComb]);
-                            M.coverage1T2nd(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(R.coverage1T2nd, [1 1 1 1 nWindow nFreqComb]);
-
-                            M.coverage2T1st(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(R.coverage2T1st, [1 1 1 1 nWindow/2 nFreqComb]);
-                            M.coverage2T2nd(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(R.coverage2T2nd, [1 1 1 1 nWindow/2 nFreqComb]);
-
-                            M.coverage1Tzonal(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(R.coverage1Tzonal, [1 1 1 1 nRow nFreqComb]);
-                            M.coverage1Tglobal(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.coverage1Tglobal, [1 1 1 1 nFreqComb]);
-
-                            M.coverage2Tzonal(iNrx,iAlt,iInc,iNplane,:,:) = ...
-                                reshape(R.coverage2Tzonal, [1 1 1 1 nRow nFreqComb]);
-                            M.coverage2Tglobal(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.coverage2Tglobal, [1 1 1 1 nFreqComb]);
-
-                            M.SSC(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.SSC, [1 1 1 1 nTxComb]);
-
-                            M.SRT1T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.SRT1T, [1 1 1 1 nTxComb]);
-                            M.SRT2T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.SRT2T, [1 1 1 1 nTxComb]);
-
-                            M.nSpValid(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.nSpValid, [1 1 1 1 nTxComb]);
-                            M.nSpInvalid(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.nSpInvalid, [1 1 1 1 nTxComb]);
-                            M.nSpRatio(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.nSpRatio, [1 1 1 1 nTxComb]);
-
-                            M.MRT1T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.MRT1T, [1 1 1 1 nFreqComb]);
-
-                            M.MRT2T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.MRT2T, [1 1 1 1 nFreqComb]);
-
-                            M.Nmulti1T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.Nmulti1T, [1 1 1 1 nFreqComb]);
-
-                            M.Nmulti2T(iNrx,iAlt,iInc,iNplane,:) = ...
-                                reshape(R.Nmulti2T, [1 1 1 1 nFreqComb]);
+                            for f = string(fieldnames(R)).'
+                                writeCase(M, f, {iNrx, iAlt, iInc, iNplane}, R.(f));
+                            end
 
                             %% Mark this case complete only after all writes succeed
                             tmpCaseDone = M.caseDone;
@@ -673,6 +624,20 @@ function saveCaseFile(file, R)
     tmp = file + ".tmp.mat";
     save(tmp, '-struct', 'R');
     movefile(tmp, file);
+end
+
+function writeCase(M, name, sub, value)
+% WRITECASE  Write one case's value into the FoM array name of the matfile M
+%   at the case subscripts sub = {iNrx, iAlt, iInc, iNplane}. A saved array
+%   loses its trailing dimensions of size 1 (one frequency combination, one
+%   orbital plane, ...) and matfile takes no more subscripts than the stored
+%   array has, so the subscripts and the value's shape are cut to the stored
+%   rank; the subscripts cut off all index a dimension of size 1.
+    trail = caseSize(value);
+    subs = [sub, repmat({':'}, 1, numel(trail))];
+    blk = [ones(1, numel(sub)), trail];
+    n = max(2, numel(size(M, char(name))));
+    M.(char(name))(subs{1:n}) = reshape(value, blk(1:n));
 end
 
 function sz = caseSize(v)
