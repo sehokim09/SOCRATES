@@ -16,6 +16,12 @@ function [DesignParamsObj, res] = designReceiver(projName, DesignParamsObj, opts
 %     cdfFile  earthdata/reflectivity/reflectivity_CDF_v2.mat
 %     save     true          write sim/<projName>/out/Receiver_<projName>.mat
 %     verbose  false         print the diagnostics of the three steps
+%     progressFcn  []        called as progressFcn(frac, msg) at each stage, frac
+%                            the fraction of the design done (0 to 1); e.g.
+%                            @(f, m) set(dlg, 'Value', f, 'Message', m)
+%
+%   Progress is printed to the command window: one line per stage with the
+%   elapsed time, then the solved channels and the pass fractions.
 %
 %   The steps are optimizeReceiver, generateReceiverPatterns and
 %   evaluateReceiver. The geometry sample is the first receiver of the
@@ -58,7 +64,7 @@ function [DesignParamsObj, res] = designReceiver(projName, DesignParamsObj, opts
     if nargin < 3, opts = struct(); end
     def = struct('patDir', fullfile('ant_pat', 'sai'), ...
                  'cdfFile', fullfile('earthdata', 'reflectivity', 'reflectivity_CDF_v2.mat'), ...
-                 'save', true, 'verbose', false);
+                 'save', true, 'verbose', false, 'progressFcn', []);
     for f = string(fieldnames(def)).'
         if ~isfield(opts, f), opts.(f) = def.(f); end
     end
@@ -67,17 +73,29 @@ function [DesignParamsObj, res] = designReceiver(projName, DesignParamsObj, opts
         error('designReceiver:pol', 'RX_POL is "%s"; SOCRATES needs the HVC design (ports X, Y and L).', in.RX_POL);
     end
 
+    t0 = tic;
+    say = @(frac, msg) report(frac, msg, t0, opts.progressFcn);
+    stage = @(a, b, label) @(frac, msg) say(a + (b - a)*frac, label + ": " + msg);
+    fprintf('\n===== DESIGN RECEIVER: %s =====\n', projName);
+
     % 1  Payload
     GEOM = geometrySample(DesignParamsObj);
+    fprintf('  geometry sample (%d files):\n', numel(GEOM));
+    for ig = 1:numel(GEOM)
+        fprintf('    %-7s %s%s\n', GEOM(ig).label, GEOM(ig).file, repmat('  (not found)', 1, ~isfile(GEOM(ig).file)));
+    end
     optOpts = struct('GEOM', GEOM, 'RX_POL', in.RX_POL, 'RMSE_TARGET', in.RMSE_target, ...
         'T_WINDOW_H', DesignParamsObj.window, 'RES_MAX_km', in.resMax_km, 'EQUAL_RES', in.equalRes, ...
         'ROUND_IMPL', in.roundImpl, 'T_I_STEP', in.T_I_step, 'DWELL_EPOCH', in.dwellEpoch, ...
         'FIX', in.FIX, 'NADIR_FACE', in.nadirFace, 'GNSS_EIRP_MODE', in.gnssEirpMode, ...
-        'GNSS_EIRP_MARGIN_dB', in.gnssEirpMargin_dB, 'cdfFile', opts.cdfFile, 'verbose', opts.verbose);
+        'GNSS_EIRP_MARGIN_dB', in.gnssEirpMargin_dB, 'cdfFile', opts.cdfFile, 'verbose', opts.verbose, ...
+        'progressFcn', stage(0, 0.3, "1/3 payload"));
     optOpts.GNSS_SIG_OPTIONS = in.gnssSignals;     % struct() would expand a cell
     [payload, info] = optimizeReceiver(optOpts);
+    say(0.3, "1/3 payload: " + info.summary);
 
     % 2  Antenna pattern files
+    say(0.3, "2/3 antenna patterns: writing to " + opts.patDir);
     [saiAnt, antTable] = generateReceiverPatterns(payload, ...
         struct('patDir', opts.patDir, 'verbose', opts.verbose));
 
@@ -85,7 +103,8 @@ function [DesignParamsObj, res] = designReceiver(projName, DesignParamsObj, opts
     R = evaluateReceiver(payload, saiAnt, struct('RX_POL', in.RX_POL, ...
         'T_h', DesignParamsObj.window, 'RMSE_target', in.RMSE_target, 'RMSE_target_L', in.RMSE_target_L, ...
         'patDir', opts.patDir, 'cdfFile', opts.cdfFile, ...
-        'source', "optimizeReceiver " + info.generated, 'verbose', opts.verbose));
+        'source', "optimizeReceiver " + info.generated, 'verbose', opts.verbose, ...
+        'progressFcn', stage(0.31, 0.98, "3/3 evaluation")));
 
     DesignParamsObj.receiver.payload = payload;
     DesignParamsObj.receiver.antenna = saiAnt;
@@ -100,7 +119,28 @@ function [DesignParamsObj, res] = designReceiver(projName, DesignParamsObj, opts
     if opts.save
         dirOut = fullfile('sim', projName, 'out');
         if ~isfolder(dirOut), mkdir(dirOut); end
-        save(fullfile(dirOut, sprintf('Receiver_%s.mat', projName)), '-struct', 'res');
+        fileOut = fullfile(dirOut, sprintf('Receiver_%s.mat', projName));
+        say(0.99, "saving " + fileOut);
+        save(fileOut, '-struct', 'res');
+    end
+    say(1, "done");
+
+    % Solved channels and the fraction of observations each product passes
+    fprintf('  %-8s %5s %8s %8s %6s %6s\n', 'Tx', 'Nc', 'T_I[ms]', 'N_incoh', 'H&V', 'LHCP');
+    for iTx = 1:R.model.nTx
+        t = R.model.tx(iTx);
+        fprintf('  %-8s %5d %8.1f %8d %6.2f %6.2f\n', t.name, t.Nc, t.TI_s*1e3, t.Nincoh, ...
+            R.evalSum.HV_hi(iTx), R.evalSum.LHCP(iTx));
+    end
+end
+
+function report(frac, msg, t0, progressFcn)
+% REPORT  One progress line in the command window, also passed to
+%   progressFcn (an app's progress dialog) when given.
+    fprintf('  [%6.1f s] %s\n', toc(t0), msg);
+    if ~isempty(progressFcn)
+        progressFcn(frac, char(msg));
+        drawnow limitrate
     end
 end
 

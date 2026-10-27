@@ -33,6 +33,8 @@ function [payload, info] = optimizeReceiver(opts)
 %     GNSS_EIRP_MARGIN_dB  1.0
 %     cdfFile              earthdata/reflectivity/reflectivity_CDF_v2.mat
 %     verbose              false   print the search log and the design tables
+%     progressFcn          []      called as progressFcn(frac, msg) at each stage,
+%                                  frac the fraction of the run done (0 to 1)
 %
 %   payload  the solved payload (the struct of solved_payload.m), with every
 %            value rounded as solved_payload.m stores it, so the pattern
@@ -74,7 +76,7 @@ function [payload, info] = optimizeReceiver(opts)
         'NADIR_FACE', "large", 'GP_OPTIONS', [], 'GNSS_SIG_OPTIONS', {{"GPS_L1CA"}}, ...
         'GNSS_EIRP_MODE', "margin", 'GNSS_EIRP_MARGIN_dB', 1.0, ...
         'cdfFile', fullfile('earthdata', 'reflectivity', 'reflectivity_CDF_v2.mat'), ...
-        'verbose', false);
+        'verbose', false, 'progressFcn', []);
     if ~isfield(opts, 'GEOM') || isempty(opts.GEOM)
         error('optimizeReceiver:noGeom', 'opts.GEOM (the single-receiver geometry sample) is required.');
     end
@@ -86,6 +88,7 @@ function [payload, info] = optimizeReceiver(opts)
     else
         vprintf = @(varargin) [];
     end
+    if isempty(opts.progressFcn), progress = @(frac, msg) []; else, progress = opts.progressFcn; end
 
     %% Design space and objective
     PASS_FLOOR   = 0.80;   % a band-and-port counts as delivering above this
@@ -274,6 +277,7 @@ function [payload, info] = optimizeReceiver(opts)
     % Each geometry file is read once, keeping every STRIDE(ib)-th observation of band ib
     RAW = cell(1, nGrp);
     for ig = 1:nGrp
+        progress(0.2*(ig-1)/nGrp, sprintf('reading geometry %d/%d (%s)', ig, nGrp, GRP_LBL(ig)));
         RAW{ig} = localReadGeom(GEOM(ig).file, BAND, STRIDE);
     end
 
@@ -424,6 +428,7 @@ function [payload, info] = optimizeReceiver(opts)
 
     vprintf('\n  searching (%d ground-plane option(s) x %d x %d channel counts) ...\n', nGP, numel(NCH_OPTIONS{1}), numel(NCH_OPTIONS{2}));
     gpRes = struct('F', num2cell(-inf(1,nGP)), 'X', [], 'N', [], 'S', 1, 'margin', num2cell(-inf(1,nGP)), 'mass', 0);
+    nCase = nGP*numel(GNSS_SIG_OPTIONS)*numel(NCH_OPTIONS{1})*numel(NCH_OPTIONS{2});  kCase = 0;
     searchLog = struct('gp', {}, 'nSig', {}, 'nch', {}, 'objective', {}, 'passBand', {}, 'marginWorst', {}, 'mass_kg', {});
     for ig = 1:nGP
         opt = GP_OPTIONS(ig);
@@ -441,6 +446,8 @@ function [payload, info] = optimizeReceiver(opts)
             for n1 = NCH_OPTIONS{1}
                 for n2 = NCH_OPTIONS{2}
                     nch = [n1 n2 NCH_OPTIONS{3}(1) nS];     % GNSS count = signals tracked
+                    kCase = kCase + 1;
+                    progress(0.2 + 0.5*(kCase-1)/nCase, sprintf('search %d/%d (ORBCOMM x%d, UFO x%d, %d GNSS signal(s))', kCase, nCase, n1, n2, nS));
                     [xo, fo] = localCompassSearch(@(x) objective(x, nch), X0g, LBg, UBg);
                     [~, ~, iC] = objective(xo, nch);
                     vprintf('    GNSS %d signal(s), ORBCOMM x%d, UFO x%d: objective %+.4f   pass per band [%s]  worst margin %+.3f on %s  dwell %.2f s  %.2f kg\n', ...
@@ -546,6 +553,7 @@ function [payload, info] = optimizeReceiver(opts)
     % One payload for all orbits: the design is held fixed through the
     % constellation tradespace, so report it per geometry group and at the
     % altitude extremes (worst required port per band)
+    progress(0.7, 'checking the payload across orbits');
     ALT_CHECK_km = unique([bestX(iALT), 500, 700]);
     byOrbit = nan(nBand, nGrp, numel(ALT_CHECK_km));
     for ia = 1:numel(ALT_CHECK_km)
@@ -581,6 +589,7 @@ function [payload, info] = optimizeReceiver(opts)
     %   Pass fraction per band (min over the required ports) against the I/P
     %   dwell at the solved receiver and channel counts, with the dwells
     %   entering continuously; the L-band dwell keeps the solved offset.
+    progress(0.75, 'dwell trade');
     nSw = 36;  Tsw = linspace(0.2, 1.25*capVU, nSw);
     passT = nan(nSw, nBand);
     CONSTsw = CONST;  CONSTsw.DWELL_EPOCH = 0;

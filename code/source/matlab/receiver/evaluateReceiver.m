@@ -21,6 +21,8 @@ function R = evaluateReceiver(payload, saiAnt, opts)
 %     geomDir        ""      folder searched for a payload.geomFiles entry not found as given
 %     source         ""      source stamp written to R.model.source
 %     verbose        false   print the diagnostic tables
+%     progressFcn    []      called as progressFcn(frac, msg) at each stage,
+%                            frac the fraction of the run done (0 to 1)
 %
 %   Ported from single_ant_model.m of the ASR SAI design (2026-10-21). The
 %   observation tests are unchanged: Test 1 (minimum direct SNR), Test 2
@@ -66,12 +68,13 @@ function R = evaluateReceiver(payload, saiAnt, opts)
         'RMSE_target', NaN, 'RMSE_target_L', NaN, ...
         'patDir', fullfile('ant_pat', 'sai'), ...
         'cdfFile', fullfile('earthdata', 'reflectivity', 'reflectivity_CDF_v2.mat'), ...
-        'geomDir', "", 'source', "", 'verbose', false));
+        'geomDir', "", 'source', "", 'verbose', false, 'progressFcn', []));
     if opts.verbose
         vprintf = @(varargin) fprintf(varargin{:});
     else
         vprintf = @(varargin) [];
     end
+    if isempty(opts.progressFcn), progress = @(frac, msg) []; else, progress = opts.progressFcn; end
     RX_POL  = string(opts.RX_POL);  RX_PORT = string(opts.RX_PORT);  T = opts.T_h;
     RMSE_SM_target = opts.RMSE_target;  RMSE_L_target = opts.RMSE_target_L;
 
@@ -282,6 +285,8 @@ function R = evaluateReceiver(payload, saiAnt, opts)
     if isempty(geomFiles), error('evaluateReceiver:noGeom', 'No specular-point file from payload.geomFiles found.'); end
     data = struct();
     for ig = 1:numel(geomFiles)
+        [~, fname, ext] = fileparts(geomFiles(ig));
+        progress(0.35*(ig-1)/numel(geomFiles), sprintf('reading geometry %d/%d (%s)', ig, numel(geomFiles), fname + ext));
         d1 = readSpDataNc(geomFiles(ig), Tx);
         d1.MUOS = d1.MUOS(logical(d1.flagSpotbeam),:);     % spot beam for MUOS
         for iTx = 1:numel(Tx)
@@ -303,6 +308,8 @@ function R = evaluateReceiver(payload, saiAnt, opts)
 
     for kPort = 1:numel(scoreList)
         thisPort = scoreList(kPort);
+        portLabel = string(thisPort);  if thisPort == "Lcp", portLabel = "L, LHCP product"; end
+        progress(0.35 + 0.45*(kPort-1)/numel(scoreList), sprintf('port %s (%d/%d)', portLabel, kPort, numel(scoreList)));
 
         % Port selection. The reflector's nadir-to-zenith asymmetry is in the
         % pattern files; polMismatch_dB carries only the circular-on-linear
@@ -539,6 +546,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
     %   retrieval that consumes all four frequencies at one common eta.
     acc = struct();
     if RX_POL == "HVC"
+        progress(0.8, 'achieved reflectivity error');
         vprintf('\n===== ACHIEVED REFLECTIVITY ERROR eta (forward error model, median Gamma) =====\n');
         vprintf('%-10s %8s %8s %8s | %8s %8s %8s | %8s %8s %8s\n', 'Tx', 'eta_L 20', 'median', '80 pct', ...
                 'eta_X 20', 'median', '80 pct', 'eta_Y 20', 'median', '80 pct');
