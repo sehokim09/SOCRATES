@@ -17,6 +17,10 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
 %   Otherwise raw case-by-case results are written directly to the MAT file.
 %   Post-processing is performed only after all cases are completed.
 %
+%   Progress is printed to the command window: one line per computed case
+%   with the elapsed time and an estimate of the time left, then the merge
+%   and post-processing steps.
+%
 %   Every coverage and revisit metric comes from obsFreq (bit k-1 = TxComb k,
 %   one 12-hour window per slice of the third dimension). MRT1T/MRT2T (per
 %   frequency combination) and SRT1T/SRT2T (per TxComb) are the per-cell Poisson
@@ -153,9 +157,17 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
     performFile = dir_spdata + filesep + filename_perform;
     nCaseTotal = nNrx * nAlt * nInc * nNplane;
 
+    t0 = tic;
+    runMode = "serial";
+    if useParallel, runMode = "parallel"; end
+    fprintf('\n===== CREATE FoM: %s (run tag %s) =====\n', projName, performTag);
+    fprintf('  %d constellation(s), %d TxComb, %d frequency combination(s), %d windows of %g h, %d x %d grid\n', ...
+        nCaseTotal, nTxComb, nFreqComb, nWindow, windowHours1T, nCol, nRow);
+    fprintf('  %s run, output %s\n', runMode, filepath_out);
+
     %% Initialize MAT file if it does not exist
     if ~isfile(filepath_out)
-        fprintf('Creating MAT checkpoint file: %s\n', filepath_out);
+        say(t0, 'creating the MAT checkpoint file');
 
         costSats = zeros(nNrx, nAlt, nInc, nNplane);
         costDedicated = zeros(nNrx, nAlt, nInc, nNplane);
@@ -209,12 +221,12 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
 
     %% Progress tracker
     nCaseDone0 = nnz(M.caseDone);
-    fprintf('Initial progress: %d / %d cases completed (%.2f%%)\n', ...
+    say(t0, '%d / %d cases completed in earlier runs (%.2f%%)', ...
         nCaseDone0, nCaseTotal, 100 * nCaseDone0 / nCaseTotal);
 
     %% Main loop
     if M.loopComplete
-        fprintf('All raw cases were already completed. Skipping raw loop.\n');
+        say(t0, 'all raw cases were already completed; skipping the raw loop');
     elseif useParallel
         %% Parallel: one checkpoint file per case, merged once all exist
         caseDir = fullfile(dir_out, sprintf('FoM_%s_cases', projName));
@@ -223,7 +235,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
         end
         caseFile = string(caseDir) + filesep + consName + ".mat";
         todo = find(~arrayfun(@isfile, caseFile));
-        fprintf('Parallel run: %d of %d cases to compute; finished cases are kept in %s\n', ...
+        say(t0, 'parallel run: %d of %d cases to compute; finished cases are kept in %s', ...
             numel(todo), nCaseTotal, caseDir);
 
         ok = false(size(todo));
@@ -231,42 +243,70 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
         caseTodo = caseFile(todo);
         costTodo = costFile(todo);
         performTodo = performFile(todo);
+        nameTodo = consName(todo);
+        % The workers report each finished case through a DataQueue; without
+        % the Parallel Computing Toolbox the loop runs here and reports directly
+        q = [];
+        if ~isempty(todo) && exist('parallel.pool.DataQueue', 'class')
+            gcp();      % start the pool first, so its startup is not counted per case
+            q = parallel.pool.DataQueue;
+            afterEach(q, @(c) caseProgress('case', c{:}));
+        end
+        caseProgress('start', t0, numel(todo), nCaseTotal - numel(todo), nCaseTotal);
         parfor k = 1:numel(todo)
+            tCase = tic;
+            okk = false;
             try
                 saveCaseFile(caseTodo(k), fomCase(costTodo(k), performTodo(k), P));
-                ok(k) = true;
+                okk = true;
             catch ME
                 msg{k} = ME.message;
+            end
+            ok(k) = okk;
+            if isempty(q)
+                caseProgress('case', char(nameTodo(k)), okk, toc(tCase));
+            else
+                send(q, {char(nameTodo(k)), okk, toc(tCase)});
             end
         end
         for k = reshape(find(~ok), 1, [])
             warning('Case %s failed: %s', consName(todo(k)), msg{k});
         end
         if ~all(arrayfun(@isfile, caseFile), 'all')
-            fprintf('Some cases are still missing. Skipping post-processing; re-run createFoM to compute them.\n');
+            say(t0, 'some cases are still missing; skipping post-processing (re-run createFoM to compute them)');
             return;
         end
 
-        fprintf('All %d cases computed. Merging the case files into %s\n', nCaseTotal, filepath_out);
+        say(t0, 'all %d cases computed; merging the case files into %s', nCaseTotal, filepath_out);
         R = load(caseFile(1));
         fields = fieldnames(R);
         A = struct();
         for f = 1:numel(fields)
             A.(fields{f}) = zeros(nCaseTotal, numel(R.(fields{f})));
         end
+        nStep = max(1, round(nCaseTotal/10));
         for ic = 1:nCaseTotal
             R = load(caseFile(ic));
             for f = 1:numel(fields)
                 A.(fields{f})(ic, :) = R.(fields{f})(:).';
             end
+            if mod(ic, nStep) == 0 || ic == nCaseTotal
+                say(t0, 'read %d/%d case files', ic, nCaseTotal);
+            end
         end
+        say(t0, 'writing the merged arrays');
         for f = 1:numel(fields)
             M.(fields{f}) = reshape(A.(fields{f}), [nNrx, nAlt, nInc, nNplane, caseSize(R.(fields{f}))]);
         end
         M.caseDone = true(nNrx, nAlt, nInc, nNplane);
         M.loopComplete = true;
-        fprintf('All raw cases are complete.\n');
+        say(t0, 'all raw cases are complete');
     else
+        nTodo = nCaseTotal - nCaseDone0;
+        if nCaseDone0 > 0
+            say(t0, 'skipping the %d completed case(s)', nCaseDone0);
+        end
+        caseProgress('start', t0, nTodo, nCaseDone0, nCaseTotal);
         for iNrx = 1:nNrx
             for iAlt = 1:nAlt
                 for iInc = 1:nInc
@@ -274,33 +314,17 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
                         caseLinearIdx = sub2ind([nNrx, nAlt, nInc, nNplane], ...
                             iNrx, iAlt, iInc, iNplane);
 
-                        nDoneNow = nnz(M.caseDone);
-                        progressPct = 100 * nDoneNow / nCaseTotal;
-
                         currentDir = char(dir_spdata(iNrx,iAlt,iInc,iNplane));
                         currentConsName = char(consName(iNrx,iAlt,iInc,iNplane));
 
-                        fprintf('\n============================================================\n');
-                        fprintf('Case %d / %d\n', caseLinearIdx, nCaseTotal);
-                        fprintf('Completed so far: %d / %d (%.2f%%)\n', ...
-                            nDoneNow, nCaseTotal, progressPct);
-                        fprintf('Constellation: %s\n', currentConsName);
-                        fprintf('Directory: %s\n', currentDir);
-                        fprintf('Indices: iNrx=%d, iAlt=%d, iInc=%d, iNplane=%d\n', ...
-                            iNrx, iAlt, iInc, iNplane);
-                        fprintf('============================================================\n');
-
                         if M.caseDone(iNrx, iAlt, iInc, iNplane)
-                            fprintf('Status: already completed. Skipping this case.\n');
                             continue;
                         end
 
-                        fprintf('Status: running this case now.\n');
-
+                        tCase = tic;
                         try
                             R = fomCase(costFile(caseLinearIdx), performFile(caseLinearIdx), P);
-
-                            fprintf('Computation finished. Writing results to MAT file...\n');
+                            tCompute = toc(tCase);
 
                             %% Write this case immediately to MAT file
                             M.costSats(iNrx,iAlt,iInc,iNplane) = R.costSats;
@@ -356,20 +380,15 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
                             M.Nmulti2T(iNrx,iAlt,iInc,iNplane,:) = ...
                                 reshape(R.Nmulti2T, [1 1 1 1 nFreqComb]);
 
-                            fprintf('MAT file write finished. Marking this case as complete...\n');
-
                             %% Mark this case complete only after all writes succeed
                             tmpCaseDone = M.caseDone;
                             tmpCaseDone(iNrx, iAlt, iInc, iNplane) = true;
                             M.caseDone = tmpCaseDone;
 
-                            nDoneAfter = nnz(M.caseDone);
-                            progressPctAfter = 100 * nDoneAfter / nCaseTotal;
-
-                            fprintf('Case completed successfully.\n');
-                            fprintf('Updated progress: %d / %d (%.2f%%)\n', ...
-                                nDoneAfter, nCaseTotal, progressPctAfter);
+                            caseProgress('case', currentConsName, true, toc(tCase), ...
+                                sprintf(' (compute %.1f s, write %.1f s)', tCompute, toc(tCase) - tCompute));
                         catch ME
+                            caseProgress('case', currentConsName, false, toc(tCase));
                             fprintf(2, 'Case failed.\n');
                             fprintf(2, 'Directory: %s\n', currentDir);
                             fprintf(2, 'Error message: %s\n', ME.message);
@@ -386,28 +405,29 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
         tmpCaseDone = M.caseDone;
         if all(tmpCaseDone(:))
             M.loopComplete = true;
-            fprintf('All raw cases are complete.\n');
+            say(t0, 'all raw cases are complete');
         else
-            fprintf('Some raw cases are still incomplete. Skipping post-processing.\n');
+            say(t0, '%d case(s) are still incomplete; skipping post-processing', nnz(~tmpCaseDone));
             return;
         end
     end
 
     %% Post-process only after all raw cases are complete
     if ~M.loopComplete
-        fprintf('Raw loop is not complete. Skipping post-processing.\n');
+        say(t0, 'raw loop is not complete; skipping post-processing');
         return;
     end
 
     if M.postProcessComplete
-        fprintf('Post-processing was already completed. Nothing more to do.\n');
+        say(t0, 'post-processing was already completed; nothing more to do');
         return;
     end
 
-    fprintf('Starting post-processing.\n');
+    say(t0, 'post-processing: loading %s', filepath_out);
 
     S = load(filepath_out);
 
+    say(t0, 'post-processing: computing the FoM vectors');
     consName_vec = reshape(S.consName, [], 1);
     nCase = length(consName_vec);
 
@@ -447,6 +467,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
     launchOption = launchOption_vec;
     nLaunch = nLaunch_vec;
 
+    say(t0, 'post-processing: saving');
     save(filepath_out, ...
         'consName', ...
         'costTotal', 'costSats', 'costDedicated', 'costRideshare', 'launchOption', 'nLaunch', ...
@@ -460,7 +481,46 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
     M = matfile(filepath_out, 'Writable', true);
     M.postProcessComplete = true;
 
-    fprintf('Post-processing completed successfully.\n');
+    say(t0, 'post-processing completed; %s is ready', filepath_out);
+end
+
+function say(t0, varargin)
+% SAY  One progress line with the time elapsed since t0.
+    fprintf('  [%s] %s\n', hms(toc(t0)), sprintf(varargin{:}));
+end
+
+function s = hms(sec)
+    s = char(duration(0, 0, sec, 'Format', 'hh:mm:ss'));
+end
+
+function caseProgress(action, varargin)
+% CASEPROGRESS  One line per computed case: its time, the cases complete
+%   and an estimate of the time left from the mean time per case so far.
+%   The state is persistent, so the serial loop and the DataQueue callback
+%   of the parallel loop share one tracker.
+%     caseProgress('start', t0, nTodo, nDoneBefore, nTotal)
+%     caseProgress('case', name, ok, seconds[, detail])
+    persistent t0 tLoop nTodo nBefore nTotal nDone nFail
+    switch action
+        case 'start'
+            [t0, nTodo, nBefore, nTotal] = varargin{:};
+            tLoop = tic;  nDone = 0;  nFail = 0;
+        case 'case'
+            name = varargin{1};  ok = varargin{2};  sec = varargin{3};
+            detail = '';
+            if numel(varargin) > 3, detail = varargin{4}; end
+            nDone = nDone + 1;
+            if ok
+                status = sprintf('%.1f s%s', sec, detail);
+            else
+                nFail = nFail + 1;
+                status = 'FAILED';
+            end
+            left = toc(tLoop) / nDone * (nTodo - nDone);
+            nComplete = nBefore + nDone - nFail;
+            say(t0, '%d/%d %s: %s | %d/%d complete (%.1f%%) | about %s left', ...
+                nDone, nTodo, name, status, nComplete, nTotal, 100 * nComplete / nTotal, hms(left));
+    end
 end
 
 function tag = readRunTag(projName)
