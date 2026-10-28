@@ -14,8 +14,8 @@
 /*  synthesized LHCP port at the LHCP budget.                              */
 /*                                                                         */
 /*  Every payload and requirement number is read from the SAI Observation  */
-/*  Model section of Inp_Design.txt, which export_socrates_inputs.m writes */
-/*  from the evaluator workspace. The                                      */
+/*  Model section of Inp_Design.txt, which createInpDesign writes from     */
+/*  DesignParams.receiver.model (the Receiver Design step). The            */
 /*  module has no SOCRATES or 42 dependency, so the standalone checker     */
 /*  sai_check links it on its own.                                         */
 /***************************************************************************/

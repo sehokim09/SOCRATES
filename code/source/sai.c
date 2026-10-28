@@ -389,7 +389,7 @@ int saiLoad(const char *designPath, const char *antRoot, SaiModel *M)
     /* the section starts after its title line */
     do {
         if (fgets(line, sizeof line, fp) == NULL) {
-            fprintf(stderr, "saiLoad: %s has no \"%s\" section (run export_socrates_inputs.m)\n",
+            fprintf(stderr, "saiLoad: %s has no \"%s\" section (run the Receiver Design step of missionDesigner)\n",
                     designPath, SAI_SECTION_MARKER);
             fclose(fp);
             return -1;
