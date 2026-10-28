@@ -3,6 +3,12 @@ function calcScore(projName, DesignParamsObj, fom)
 %
 %   Calculates score and save score_[projName].mat
 %
+%   A design candidate that violates a threshold, x < L for an SSF3 score
+%   (SSC, MSC) or x > U for an SSF9 score (cost, SRT, MRT), is infeasible
+%   and excluded before ranking, so the saved ranking holds only the
+%   candidates that satisfy all threshold requirements. A NaN FoM counts as
+%   a violation. feasible, saved with the ranking, marks them in fom order.
+%
 %   See also missionDesigner
 %
 %   Copyright (C) 2023 Seho Kim
@@ -41,7 +47,8 @@ function calcScore(projName, DesignParamsObj, fom)
         case 'Constellation'
             cost = fom.costSats;
     end
-    score.cost = penaltyWymoreSSF9(L,B,U,S,D,cost);
+    score.cost = wymoreSSF9(L,B,U,S,D,cost);
+    feasible = cost <= U;
     
     % Single-frequency Spatial Coverage
     L = [DesignParamsObj.perform.SSC.score.lower];
@@ -51,7 +58,8 @@ function calcScore(projName, DesignParamsObj, fom)
     D = reshape([DesignParamsObj.perform.SSC.score.domain], 2, []);
     score.SSCWeightedSum = 0;
     for iTxComb = 1 : DesignParamsObj.nTxComb
-        score.SSC(:,iTxComb) = penaltyWymoreSSF3(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),fom.SSC(:,iTxComb));
+        score.SSC(:,iTxComb) = wymoreSSF3(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),fom.SSC(:,iTxComb));
+        feasible = feasible & fom.SSC(:,iTxComb) >= L(iTxComb);
         score.SSCWeightedSum = score.SSCWeightedSum + DesignParamsObj.perform.SSC.score(iTxComb).weight*score.SSC(:,iTxComb);
     end
 
@@ -73,7 +81,8 @@ function calcScore(projName, DesignParamsObj, fom)
                  'or ''2T global'' (SRT over 12- or 24-hour windows).'], DesignParamsObj.perform.SRT.type);
     end
     for iTxComb = 1 : DesignParamsObj.nTxComb
-        score.SRT(:,iTxComb) = penaltyWymoreSSF9(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),SRT(:,iTxComb));
+        score.SRT(:,iTxComb) = wymoreSSF9(L(iTxComb),B(iTxComb),U(iTxComb),S(iTxComb),D(:,iTxComb),SRT(:,iTxComb));
+        feasible = feasible & SRT(:,iTxComb) <= U(iTxComb);
         score.SRTWeightedSum = score.SRTWeightedSum + DesignParamsObj.perform.SRT.score(iTxComb).weight*score.SRT(:,iTxComb);
     end
     
@@ -95,7 +104,8 @@ function calcScore(projName, DesignParamsObj, fom)
             MSC = fom.MSC2T2nd;
     end
     for iFreqComb = 1 : DesignParamsObj.nFreqComb
-        score.MSC(:,iFreqComb) = penaltyWymoreSSF3(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MSC(:,iFreqComb));
+        score.MSC(:,iFreqComb) = wymoreSSF3(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MSC(:,iFreqComb));
+        feasible = feasible & MSC(:,iFreqComb) >= L(iFreqComb);
         score.MSCWeightedSum = score.MSCWeightedSum + DesignParamsObj.perform.MSC.score(iFreqComb).weight*score.MSC(:,iFreqComb);
     end
     
@@ -113,7 +123,8 @@ function calcScore(projName, DesignParamsObj, fom)
             MRT = fom.MRT2T;
     end
     for iFreqComb = 1 : DesignParamsObj.nFreqComb
-        score.MRT(:,iFreqComb) = penaltyWymoreSSF9(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MRT(:,iFreqComb));
+        score.MRT(:,iFreqComb) = wymoreSSF9(L(iFreqComb),B(iFreqComb),U(iFreqComb),S(iFreqComb),D(:,iFreqComb),MRT(:,iFreqComb));
+        feasible = feasible & MRT(:,iFreqComb) <= U(iFreqComb);
         score.MRTWeightedSum = score.MRTWeightedSum + DesignParamsObj.perform.MRT.score(iFreqComb).weight*score.MRT(:,iFreqComb);
     end
 
@@ -124,8 +135,17 @@ function calcScore(projName, DesignParamsObj, fom)
                        + DesignParamsObj.perform.MRT.weight*score.MRTWeightedSum;
     score.final = DesignParamsObj.cost.weight*score.cost + DesignParamsObj.perform.weight*score.perform;
     
+    % Exclude the infeasible candidates, then rank the rest
+    idxFeasible = find(feasible);
+    fprintf('calcScore: %d of %d candidates satisfy all thresholds; %d excluded before ranking\n', ...
+        numel(idxFeasible), numel(feasible), numel(feasible) - numel(idxFeasible));
+    if isempty(idxFeasible)
+        warning('calcScore:noFeasible', 'No candidate satisfies all thresholds; the ranking is empty.');
+    end
+
     % Sorting
-    [final, idx] = sort(score.final, 'descend');
+    [final, order] = sort(score.final(idxFeasible), 'descend');
+    idx = idxFeasible(order);
     name = fom.consName(idx);
     cost = score.cost(idx);
     perform = score.perform(idx);
@@ -133,15 +153,15 @@ function calcScore(projName, DesignParamsObj, fom)
     SSCWeightedSum = score.SSCWeightedSum(idx);
     SRT = score.SRT(idx,:);
     SRTWeightedSum = score.SRTWeightedSum(idx);
-    MSC = score.MSC(idx);
+    MSC = score.MSC(idx,:);
     MSCWeightedSum = score.MSCWeightedSum(idx);
-    MRT = score.MRT(idx);
+    MRT = score.MRT(idx,:);
     MRTWeightedSum = score.MRTWeightedSum(idx);
     
     % Save
     dir_out = fullfile('sim', projName, 'out');
     filename_out = sprintf("score_%s.mat", projName);
-    save(fullfile(dir_out, filename_out), 'name', 'final', 'idx', 'cost', 'perform', ...
+    save(fullfile(dir_out, filename_out), 'name', 'final', 'idx', 'feasible', 'cost', 'perform', ...
         'SSC', 'SSCWeightedSum', 'SRT', 'SRTWeightedSum', ...
         'MSC', 'MSCWeightedSum', ...
         'MRT', 'MRTWeightedSum');
