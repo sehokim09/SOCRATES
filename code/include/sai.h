@@ -14,8 +14,8 @@
 /*  synthesized LHCP port at the LHCP budget.                              */
 /*                                                                         */
 /*  Every payload and requirement number is read from the SAI Observation  */
-/*  Model section of Inp_Design.txt, which export_socrates_inputs.m writes */
-/*  from the evaluator workspace. The                                      */
+/*  Model section of Inp_Design.txt, which createInpDesign writes from     */
+/*  DesignParams.receiver.model (the Receiver Design step). The            */
 /*  module has no SOCRATES or 42 dependency, so the standalone checker     */
 /*  sai_check links it on its own.                                         */
 /***************************************************************************/
@@ -97,9 +97,9 @@ typedef struct {
 } SaiDiag;
 
 /* Read the SAI_SECTION_MARKER section of an Inp_Design.txt (CDF files
-   resolved next to it) and the pattern files under antRoot/<pattern
-   subdirectory>. Returns 0 on success; on error prints the reason to
-   stderr and returns nonzero. */
+   resolved from the working directory, the SOCRATES root) and the pattern
+   files under antRoot/<pattern subdirectory>. Returns 0 on success; on
+   error prints the reason to stderr and returns nonzero. */
 int saiLoad(const char *designPath, const char *antRoot, SaiModel *M);
 void saiFree(SaiModel *M);
 

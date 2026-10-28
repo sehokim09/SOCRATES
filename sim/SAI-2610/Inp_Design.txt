@@ -71,9 +71,9 @@ solved_payload.m 2026-10-21 14:07          ! Source and timestamp
 0.051974891880158754                       ! eta_HV (dwell-averaged)
 0.029550129648325252                       ! eta_L  (dwell-averaged)
 3.0099999999999998                         ! Direct-arm loss on linear ports [dB]
-reflectivity_cdf_X.txt                     ! CDF file, port X (V)
-reflectivity_cdf_Y.txt                     ! CDF file, port Y (H)
-reflectivity_cdf_L.txt                     ! CDF file, port L (LHCP)
+earthdata/reflectivity/reflectivity_CDF_v2_X.txt ! CDF file, port X (V)
+earthdata/reflectivity/reflectivity_CDF_v2_Y.txt ! CDF file, port Y (H)
+earthdata/reflectivity/reflectivity_CDF_v2_L.txt ! CDF file, port L (LHCP)
 sai/                                       ! Pattern subdirectory of ./ant_pat/
 SAI2610                                    ! Run tag: output file <constellation>_perform_<tag>.nc
 7                                          ! Number of transmitters

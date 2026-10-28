@@ -163,6 +163,11 @@ single_ant_model; export_socrates_inputs          % regenerate the inputs
 single_ant_model; SAI_REF_OUT = "DIR"; export_sai_reference
 ```
 
+These ASR scripts were retired on 2026-10-27, when the receiver design moved into
+SOCRATES (`code/source/matlab/receiver/`); they are kept in
+`ASR-Design/retired/payload_2026-10-27/`. The SAI section of `Inp_Design.txt` is now
+written by `createInpDesign` from the Receiver Design step (`designReceiver`).
+
 ## Findings on the task specification
 
 1. The base commit 47d2ac3 is `origin/master`; the local `master` was behind it.

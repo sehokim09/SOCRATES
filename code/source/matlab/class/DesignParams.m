@@ -88,6 +88,27 @@ classdef DesignParams < handle
                                                        'baseline', 4, ...
                                                        'lower', 1, ...
                                                        'upper', 7)));
+        % Receiver Design (see designReceiver)
+        receiver = struct('inputs', struct( ...
+                              'RX_POL', "HVC", ... % Receive Polarization (HVC; SOCRATES reads ports X, Y and L)
+                              'RMSE_target', 0.06, ... % Soil-moisture RMSE Target [m^3/m^3]
+                              'RMSE_target_L', NaN, ... % RMSE Target of the LHCP Product (NaN = 0.10)
+                              'resMax_km', 25, ... % Ground Resolution Requirement [km]
+                              'equalRes', true, ... % One Footprint for All Bands
+                              'roundImpl', true, ... % Round T_I and Dwell to Implementable Values
+                              'T_I_step', 1e-4, ... % T_I Granularity [s]
+                              'dwellEpoch', 0, ... % Dwell Output Epoch [s] (0 = none)
+                              'FIX', [NaN NaN NaN NaN 1.0 0.8 0.5 500], ... % Pinned [D_gp h T_dwell_VU T_dwell_L NF_VU NF_L L_fe alt_Rx] (NaN = free)
+                              'nadirFace', "large", ... % Nadir Face of the 6U (large, end)
+                              'gnssSignals', {{"GPS_L1CA"}}, ... % GNSS Signal Sets
+                              'gnssEirpMode', "margin", ... % GNSS EIRP Mode (margin, min, nominal)
+                              'gnssEirpMargin_dB', 1.0, ... % GNSS EIRP Margin [dB]
+                              'geomFiles', "", ... % Geometry Sample Files ("" = Rx1 of each Walker inclination)
+                              'geomDir', ""), ... % Geometry Sample Folder ("" = Large File Storage Root Directory)
+                          'runTag', "", ... % Run Tag of the Performance Files
+                          'payload', [], ... % Solved Payload (optimizeReceiver)
+                          'antenna', [], ... % Antenna Summary (generateReceiverPatterns)
+                          'model', []); % SAI Observation Model (evaluateReceiver)
     end
     
     methods (Static)
