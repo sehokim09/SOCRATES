@@ -21,6 +21,8 @@ function [payload, info] = optimizeReceiver(opts)
 %     ROUND_IMPL           true    round T_I and the dwell to implementable values
 %     T_I_STEP             1e-4    T_I granularity of the SoOp links [s]
 %     DWELL_EPOCH          0       output epoch the dwell is a whole number of [s]; 0 = none
+%     THETA_MAX_DEG        90      maximum incidence angle of an observation [deg];
+%                                  the sample is cut to it before the search; 90 = none
 %     FIX                  [NaN NaN NaN NaN 1.0 0.8 0.5 500]  pinned values of
 %                          [D_gp h T_dwell_VU T_dwell_L NF_VU NF_L L_fe alt_Rx]
 %                          (m m s s dB dB dB km); NaN lets the search move it
@@ -72,7 +74,7 @@ function [payload, info] = optimizeReceiver(opts)
 
     def = struct('RX_POL', "HVC", 'RMSE_TARGET', NaN, 'T_WINDOW_H', 12, ...
         'RES_MAX_km', 25, 'EQUAL_RES', true, 'ROUND_IMPL', true, ...
-        'T_I_STEP', 0.1e-3, 'DWELL_EPOCH', 0, 'FIX', [NaN NaN NaN NaN 1.0 0.8 0.5 500], ...
+        'T_I_STEP', 0.1e-3, 'DWELL_EPOCH', 0, 'THETA_MAX_DEG', 90, 'FIX', [NaN NaN NaN NaN 1.0 0.8 0.5 500], ...
         'NADIR_FACE', "large", 'GP_OPTIONS', [], 'GNSS_SIG_OPTIONS', {{"GPS_L1CA"}}, ...
         'GNSS_EIRP_MODE', "margin", 'GNSS_EIRP_MARGIN_dB', 1.0, ...
         'cdfFile', fullfile('earthdata', 'reflectivity', 'reflectivity_CDF_v2.mat'), ...
@@ -310,6 +312,17 @@ function [payload, info] = optimizeReceiver(opts)
             P.cdfX.(port) = Xu;  P.cdfF.(port) = Fu;
             [Fq, iq] = unique(Fu, 'first');
             P.Ginv.(port) = interp1(Fq, Xu(iq), 1-GAMMA_REQ, 'linear', 'extrap');
+        end
+        % observations beyond the maximum incidence angle are not used; the
+        % angle follows from the reflected range and nadir angle, as in sai.c
+        aRx = P.rangeSR.*cos(P.thR) + sqrt(max(R_E^2 - (P.rangeSR.*sin(P.thR)).^2, 0));
+        keep = asind(min(1, aRx.*sin(P.thR)/R_E)) <= opts.THETA_MAX_DEG;
+        for fn = ["rangeTR" "rangeTS" "rangeSR" "theta" "iR" "iD" "thR" "thD" "grp" "altRef"]
+            P.(fn) = P.(fn)(keep);
+        end
+        P.n = numel(P.grp);
+        if ~all(keep)
+            vprintf('    %-8s %.1f%% of the sample beyond %g deg incidence left out\n', nm, 100*mean(~keep), opts.THETA_MAX_DEG);
         end
         PRE.(nm) = P;
         vprintf('    %-8s %7d observations in %d geometry group(s)\n', nm, P.n, nGrp);
@@ -693,6 +706,7 @@ function [payload, info] = optimizeReceiver(opts)
     payload.RES_MAX_km   = stored('%g', RES_MAX_km);   % resolution requirement
     payload.EQUAL_RES    = double(EQUAL_RES);
     payload.ROUND_IMPL   = double(ROUND_IMPL);         % 1 = T_I and dwell rounded to implementable values
+    payload.thetaMax_deg = opts.THETA_MAX_DEG;         % maximum incidence angle of an observation
     payload.T_I_STEP_s   = stored('%g', T_I_STEP);
     payload.DWELL_EPOCH_s = stored('%g', DWELL_EPOCH);
     payload.NF_VU_dB     = stored('%.6g', bestX(5));   % I/P LNA noise figure

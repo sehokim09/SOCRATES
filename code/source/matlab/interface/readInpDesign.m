@@ -189,6 +189,7 @@ function [model, runTag] = readSaiSection(fileID)
     model.etaHV = str2double(value());
     model.etaL = str2double(value());
     model.dirLinLoss_dB = str2double(value());
+    model.thetaMax_deg = str2double(value());
     cdfName = [value(), value(), value()];
     patSub = value();
     if patSub ~= "sai/"

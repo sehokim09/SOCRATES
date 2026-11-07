@@ -98,6 +98,7 @@ classdef DesignParams < handle
                               'roundImpl', true, ... % Round T_I and Dwell to Implementable Values
                               'T_I_step', 1e-4, ... % T_I Granularity [s]
                               'dwellEpoch', 0, ... % Dwell Output Epoch [s] (0 = none)
+                              'thetaMax_deg', 60, ... % Maximum Incidence Angle [deg] (the range of the reflectivity CDFs; 90 = none)
                               'FIX', [NaN NaN NaN NaN 1.0 0.8 0.5 500], ... % Pinned [D_gp h T_dwell_VU T_dwell_L NF_VU NF_L L_fe alt_Rx] (NaN = free)
                               'nadirFace', "large", ... % Nadir Face of the 6U (large, end)
                               'gnssSignals', {{"GPS_L1CA"}}, ... % GNSS Signal Sets
