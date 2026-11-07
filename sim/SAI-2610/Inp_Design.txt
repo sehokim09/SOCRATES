@@ -64,13 +64,14 @@ GPS                   ! Tx 1 Name (From Inp_Inorbit.txt)
 Galileo                   ! Tx 2 Name (From Inp_Inorbit.txt)
 GLONASS                   ! Tx 3 Name (From Inp_Inorbit.txt)
 Beidou                   ! Tx 4 Name (From Inp_Inorbit.txt)
-============== SAI Observation Model (export_socrates_inputs.m) ==============
-solved_payload.m 2026-10-21 14:07          ! Source and timestamp
+=================== SAI Observation Model (designReceiver) ===================
+optimizeReceiver 2026-11-07 01:43          ! Source and timestamp
 0.80000000000000004                        ! gamma
 1                                          ! W_D
 0.051974891880158754                       ! eta_HV (dwell-averaged)
 0.029550129648325252                       ! eta_L  (dwell-averaged)
 3.0099999999999998                         ! Direct-arm loss on linear ports [dB]
+60                                         ! Maximum incidence angle [deg]
 earthdata/reflectivity/reflectivity_CDF_v2_X.txt ! CDF file, port X (V)
 earthdata/reflectivity/reflectivity_CDF_v2_Y.txt ! CDF file, port Y (H)
 earthdata/reflectivity/reflectivity_CDF_v2_L.txt ! CDF file, port L (LHCP)
@@ -79,9 +80,9 @@ SAI2610                                    ! Run tag: output file <constellation
 7                                          ! Number of transmitters
 ! name  type  cdfCol  patTag  Glin_dBi  S0  Nc  TI_s  Nincoh  spotbeam
 ORBCOMM  SAI   1 CROSSDIPOLE_137  2.8666999999999998 1535448438593029.8 45 0.00089999999999999998 3488 0
-UFO      SAI   2 CROSSDIPOLE_255  3.4445999999999999 33221889385523176 25 0.00050000000000000001 5986 0
-MUOS     SAI   3 CROSSDIPOLE_370  3.8915000000000002 925236199557429.75 2500 0.00050000000000000001 6372 1
-GPS      GNSS  4 PATCH_1575       6.9067999999999996 11448409497451.826 2046 0.001 3333 0
-Galileo  GNSS  4 PATCH_1575       6.9067999999999996 19282024691324.395 2046 0.001 3333 0
-GLONASS  GNSS  4 PATCH_1575       6.9067999999999996 5897953237859.3359 2046 0.001 3333 0
-Beidou   GNSS  4 PATCH_1575       6.9067999999999996 11356468749896.357 2046 0.001 3333 0
+UFO      SAI   2 CROSSDIPOLE_255  3.4445999999999999 33221889385523176 70 0.0014 2250 0
+MUOS     SAI   3 CROSSDIPOLE_370  3.8915000000000002 925236199557429.75 7000 0.0014 2301 1
+GPS      GNSS  4 PATCH_1575       6.9067999999999996 11448409497451.826 2046 0.001 3400 0
+Galileo  GNSS  4 PATCH_1575       6.9067999999999996 19282024691324.395 2046 0.001 3400 0
+GLONASS  GNSS  4 PATCH_1575       6.9067999999999996 5897953237859.3359 2046 0.001 3400 0
+Beidou   GNSS  4 PATCH_1575       6.9067999999999996 11356468749896.357 2046 0.001 3400 0
