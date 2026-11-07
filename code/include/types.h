@@ -162,7 +162,7 @@ struct DesignType{
 	int *ncNspInvalidID;
 	int ncObsFreqID;
 	int ncObsFreqLID;
-	int *ncSaiCntID; // per SoOp, SAI_NCNT counters (nSpPassX, nSpPassY, nSpPassLcp, nSpKappa, nSpOffGrid)
+	int *ncSaiCntID; // per SoOp, SAI_NCNT counters (nSpPassX, nSpPassY, nSpPassLcp, nSpKappa, nSpOffGrid, nSpIncCut)
 	int *obsFreq; // H&V product of the current slice, bit iSoOp per [iWindow][iRow][iCol]
 	int *obsFreqL; // LHCP product of the current slice, bit iSoOp per [iWindow][iRow][iCol]
 	int *nSpValid; // H&V product: ports X and Y both pass
@@ -172,6 +172,7 @@ struct DesignType{
 	int *nSpPassLcp;
 	int *nSpKappa; // SAI points with kappa > -1
 	int *nSpOffGrid; // points outside the analysis grid
+	int *nSpIncCut; // points beyond the maximum incidence angle, counted neither valid nor invalid
 	SaiModel sai; // SAI observation model (SAI section of Inp_Design.txt)
 	// Variables for analyzing cost
 	int ncCostID;

@@ -1241,7 +1241,8 @@ void initConsPerform(void)
     Design->nSpPassLcp = (int *) calloc(Design->nSoOp, sizeof(int));
     Design->nSpKappa = (int *) calloc(Design->nSoOp, sizeof(int));
     Design->nSpOffGrid = (int *) calloc(Design->nSoOp, sizeof(int));
-    if (Design->nSpPassX == NULL || Design->nSpPassY == NULL || Design->nSpPassLcp == NULL || Design->nSpKappa == NULL || Design->nSpOffGrid == NULL) {
+    Design->nSpIncCut = (int *) calloc(Design->nSoOp, sizeof(int));
+    if (Design->nSpPassX == NULL || Design->nSpPassY == NULL || Design->nSpPassLcp == NULL || Design->nSpKappa == NULL || Design->nSpOffGrid == NULL || Design->nSpIncCut == NULL) {
         printf("Design->nSpPass* calloc returned null pointer.  Bailing out!\n");
         exit(1);
     }
@@ -1489,6 +1490,7 @@ void resetPerformVars(void)
         Design->nSpPassLcp[iSoOp] = 0;
         Design->nSpKappa[iSoOp] = 0;
         Design->nSpOffGrid[iSoOp] = 0;
+        Design->nSpIncCut[iSoOp] = 0;
     }
 }
 
@@ -1831,7 +1833,7 @@ void createSpDataNc(void)
 }
 
 // Names of the SAI counters in the performance file, in the order of ncSaiCntID
-static const char *saiCntName[SAI_NCNT] = {"nSpPassX", "nSpPassY", "nSpPassLcp", "nSpKappa", "nSpOffGrid"};
+static const char *saiCntName[SAI_NCNT] = {"nSpPassX", "nSpPassY", "nSpPassLcp", "nSpKappa", "nSpOffGrid", "nSpIncCut"};
 
 void createPerformNc(void)
 {
@@ -2043,7 +2045,7 @@ void writeSpDataNc(long iRx, long iSoOp, struct SpecularType *Sp)
 void writeNspNc(void)
 {
     int retval, iSoOp, k;
-    int *cnt[SAI_NCNT] = {Design->nSpPassX, Design->nSpPassY, Design->nSpPassLcp, Design->nSpKappa, Design->nSpOffGrid};
+    int *cnt[SAI_NCNT] = {Design->nSpPassX, Design->nSpPassY, Design->nSpPassLcp, Design->nSpKappa, Design->nSpOffGrid, Design->nSpIncCut};
 
     for(iSoOp=0; iSoOp<Design->nSoOp; iSoOp++){
         if ((retval = nc_put_var_int(Design->ncPerformID, Design->ncNspValidID[iSoOp], &Design->nSpValid[iSoOp])))
@@ -2302,6 +2304,11 @@ void readSpDataNc(int iteration)
                                                   Design->accessRangeTR[iSp], Design->accessRangeTS[iSp], Design->accessRangeSR[iSp],
                                                   Design->accessLookAngElD[iSp], Design->accessLookAngAzD[iSp],
                                                   Design->accessLookAngElR[iSp], Design->accessLookAngAzR[iSp], NULL);
+                            // beyond the maximum incidence angle: not an observation
+                            if(saiMask & SAI_INC_CUT){
+                                Design->nSpIncCut[iSoOp]++;
+                                continue;
+                            }
                             if(saiMask & SAI_PASS_X) Design->nSpPassX[iSoOp]++;
                             if(saiMask & SAI_PASS_Y) Design->nSpPassY[iSoOp]++;
                             if(saiMask & SAI_PASS_LCP) Design->nSpPassLcp[iSoOp]++;

@@ -8,7 +8,9 @@
 # Builds SOCRATES and sai_check, runs the self-test, runs the performance
 # analyzer ("perf") for that one constellation from a temporary copy of the
 # SAI-2610 project, and prints the per-SoOp H&V pass ratio
-# nSpValid/(nSpValid + nSpInvalid) with the per-port counters.
+# nSpValid/(nSpValid + nSpInvalid) over the points within the maximum incidence
+# angle, the same ratio over all points (cut points included), and the
+# per-port counters.
 # The performance file is written next to the specular-point files as
 # <cons>_perform_<run tag>.nc, the name the production run uses, so the
 # production run skips this constellation afterwards.
@@ -50,13 +52,13 @@ get() { ncdump -v "$1" "$F" | sed -n "s/^ *$1 = \([0-9-]*\) ;.*/\1/p"; }
 echo
 echo "Performance file: $F"
 ncdump -h "$F" | grep -E ':sai(Source|RunTag)'
-printf "%-8s %10s %10s %8s %8s %8s %8s %6s %8s\n" SoOp valid invalid "H&V" "pass X" "pass Y" LHCP "k>-1" offgrid
+printf "%-8s %10s %10s %10s %8s %8s %8s %8s %8s %6s %8s\n" SoOp valid invalid cut "H&V" "H&V all" "pass X" "pass Y" LHCP "k>-1" offgrid
 for s in ORBCOMM UFO MUOS GPS GE GENB; do
     v=$(get nSpValid_$s); i=$(get nSpInvalid_$s)
     x=$(get nSpPassX_$s); y=$(get nSpPassY_$s); l=$(get nSpPassLcp_$s)
-    k=$(get nSpKappa_$s); o=$(get nSpOffGrid_$s)
-    awk -v s="$s" -v v="$v" -v i="$i" -v x="$x" -v y="$y" -v l="$l" -v k="$k" -v o="$o" 'BEGIN {
-        n = v + i; printf "%-8s %10d %10d %8.4f %8.4f %8.4f %8.4f %6d %8d\n", s, v, i, v/n, x/n, y/n, l/n, k, o }'
+    k=$(get nSpKappa_$s); o=$(get nSpOffGrid_$s); c=$(get nSpIncCut_$s)
+    awk -v s="$s" -v v="$v" -v i="$i" -v c="$c" -v x="$x" -v y="$y" -v l="$l" -v k="$k" -v o="$o" 'BEGIN {
+        n = v + i; printf "%-8s %10d %10d %10d %8.4f %8.4f %8.4f %8.4f %8.4f %6d %8d\n", s, v, i, c, v/n, v/(n + c), x/n, y/n, l/n, k, o }'
 done
 if [ "$CONS" = "6_500_50_1" ]; then
     echo "payload.passByOrbit(:,2,1) (50 deg, 500 km; ORBCOMM UFO MUOS GPS): 0.9312 0.8917 0.9336 0.4326; tolerance 0.02"
