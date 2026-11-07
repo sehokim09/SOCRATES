@@ -17,6 +17,7 @@
 #define SAI_LIGHTSPEED 299792458.0      /* m/s, MATLAB physconst("lightspeed") */
 
 static const double saiPi  = 3.14159265358979323846;
+static const double saiEarthRadius = 6371000.0;   /* m, as MATLAB physconst("earthradius") */
 static const char *saiGnName[4] = {"XX", "XY", "YX", "YY"};
 
 /* --------------------------------------------------------------------- */
@@ -401,6 +402,7 @@ int saiLoad(const char *designPath, const char *antRoot, SaiModel *M)
         || saiReadDouble(fp, "eta_HV", &M->etaHV)
         || saiReadDouble(fp, "eta_L", &M->etaL)
         || saiReadDouble(fp, "the direct-arm loss", &M->dirLinLoss_dB)
+        || saiReadDouble(fp, "the maximum incidence angle", &M->thetaMax_deg)
         || saiReadString(fp, "the CDF file of port X", cdfName[SAI_SCORE_X], sizeof cdfName[0])
         || saiReadString(fp, "the CDF file of port Y", cdfName[SAI_SCORE_Y], sizeof cdfName[0])
         || saiReadString(fp, "the CDF file of port L", cdfName[SAI_SCORE_LCP], sizeof cdfName[0])
@@ -410,8 +412,8 @@ int saiLoad(const char *designPath, const char *antRoot, SaiModel *M)
         fclose(fp);
         return -1;
     }
-    if (!(M->gamma > 0.0 && M->gamma < 1.0) || !(M->WD > 0.0)) {
-        fprintf(stderr, "saiLoad: gamma = %g, W_D = %g out of range\n", M->gamma, M->WD);
+    if (!(M->gamma > 0.0 && M->gamma < 1.0) || !(M->WD > 0.0) || !(M->thetaMax_deg > 0.0 && M->thetaMax_deg <= 90.0)) {
+        fprintf(stderr, "saiLoad: gamma = %g, W_D = %g, maximum incidence %g deg out of range\n", M->gamma, M->WD, M->thetaMax_deg);
         fclose(fp);
         return -1;
     }
@@ -590,7 +592,14 @@ unsigned saiEvaluate(const SaiModel *M, const SaiTx *T,
 {
     unsigned mask = 0;
     double G_D_dB, G_R_dB, tau = NAN, kap = NAN;
+    double aRx, thetaInc;
     int s;
+
+    /* incidence angle at the specular point, from the reflected range and
+       its nadir angle on a sphere: receiver radius aRx from the triangle
+       Earth centre-receiver-specular point, then the law of sines */
+    aRx = rangeSR*cos(elR) + sqrt(fmax(saiEarthRadius*saiEarthRadius - pow(rangeSR*sin(elR), 2.0), 0.0));
+    thetaInc = asin(fmin(1.0, aRx*sin(elR)/saiEarthRadius))*180.0/saiPi;
 
     if (!T->isGNSS) {
         tau = (rangeTS + rangeSR - rangeTR)/SAI_LIGHTSPEED;
@@ -600,6 +609,7 @@ unsigned saiEvaluate(const SaiModel *M, const SaiTx *T,
     if (diag != NULL) {
         diag->tauRD = tau;
         diag->kappa = kap;
+        diag->thetaInc_deg = thetaInc;
     }
 
     for (s = 0; s < SAI_NSCORE; s++) {
@@ -656,5 +666,7 @@ unsigned saiEvaluate(const SaiModel *M, const SaiTx *T,
         }
         if (pass) mask |= 1u << s;
     }
+    /* the reflectivity CDFs cover incidence up to thetaMax_deg only */
+    if (thetaInc > M->thetaMax_deg) mask = SAI_INC_CUT;
     return mask;
 }

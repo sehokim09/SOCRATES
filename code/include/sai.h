@@ -36,6 +36,7 @@ enum { SAI_SCORE_X = 0, SAI_SCORE_Y = 1, SAI_SCORE_LCP = 2 };
 #define SAI_PASS_Y       0x2
 #define SAI_PASS_LCP     0x4
 #define SAI_KAPPA_GT_M1  0x8    /* diagnostic: SAI point with kappa > -1 */
+#define SAI_INC_CUT      0x10   /* beyond the maximum incidence angle: no pass bits */
 #define SAI_PASS_HV      (SAI_PASS_X | SAI_PASS_Y)
 
 /* One pattern file, FIELD amplitudes, v[iPhi*nTheta + iTheta],
@@ -78,6 +79,7 @@ typedef struct {
     char source[128];                       /* payload file and timestamp */
     char runTag[64];
     double gamma, WD, etaHV, etaL, dirLinLoss_dB;
+    double thetaMax_deg;                    /* maximum incidence angle of an observation */
     SaiCdf cdf[SAI_NSCORE];                 /* ports X, Y, L; Lcp uses L */
     double Ginv[SAI_NSCORE];                /* F^-1(1-gamma) at 1575 MHz, per scoring */
     int nTx;
@@ -89,6 +91,7 @@ typedef struct {
 /* Optional per-point diagnostics, indexed by scoring */
 typedef struct {
     double tauRD, kappa;                    /* SAI only */
+    double thetaInc_deg;                    /* incidence angle at the specular point */
     double G_D_dB[SAI_NSCORE], G_R_dB[SAI_NSCORE];
     double alpha[SAI_NSCORE], SD[SAI_NSCORE], beta[SAI_NSCORE];
     double rhoLo[SAI_NSCORE], rhoHi[SAI_NSCORE], P[SAI_NSCORE];
@@ -110,7 +113,8 @@ const SaiTx *saiFindTx(const SaiModel *M, const char *soopName, const char *txNa
 
 /* Evaluate one specular point. Ranges in metres, angles in radians in the
    nadir-referenced antenna frame, as stored in the specular-point files.
-   Returns the SAI_PASS_* / SAI_KAPPA_GT_M1 bitmask. diag may be NULL. */
+   Returns the SAI_PASS_* / SAI_KAPPA_GT_M1 bitmask, or SAI_INC_CUT alone for
+   a point beyond the maximum incidence angle. diag may be NULL. */
 unsigned saiEvaluate(const SaiModel *M, const SaiTx *T,
                      double rangeTR, double rangeTS, double rangeSR,
                      double elD, double azD, double elR, double azR,

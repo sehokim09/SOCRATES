@@ -21,6 +21,8 @@ function [payload, info] = optimizeReceiver(opts)
 %     ROUND_IMPL           true    round T_I and the dwell to implementable values
 %     T_I_STEP             1e-4    T_I granularity of the SoOp links [s]
 %     DWELL_EPOCH          0       output epoch the dwell is a whole number of [s]; 0 = none
+%     THETA_MAX_DEG        90      maximum incidence angle of an observation [deg];
+%                                  the sample is cut to it before the search; 90 = none
 %     FIX                  [NaN NaN NaN NaN 1.0 0.8 0.5 500]  pinned values of
 %                          [D_gp h T_dwell_VU T_dwell_L NF_VU NF_L L_fe alt_Rx]
 %                          (m m s s dB dB dB km); NaN lets the search move it
@@ -72,7 +74,7 @@ function [payload, info] = optimizeReceiver(opts)
 
     def = struct('RX_POL', "HVC", 'RMSE_TARGET', NaN, 'T_WINDOW_H', 12, ...
         'RES_MAX_km', 25, 'EQUAL_RES', true, 'ROUND_IMPL', true, ...
-        'T_I_STEP', 0.1e-3, 'DWELL_EPOCH', 0, 'FIX', [NaN NaN NaN NaN 1.0 0.8 0.5 500], ...
+        'T_I_STEP', 0.1e-3, 'DWELL_EPOCH', 0, 'THETA_MAX_DEG', 90, 'FIX', [NaN NaN NaN NaN 1.0 0.8 0.5 500], ...
         'NADIR_FACE', "large", 'GP_OPTIONS', [], 'GNSS_SIG_OPTIONS', {{"GPS_L1CA"}}, ...
         'GNSS_EIRP_MODE', "margin", 'GNSS_EIRP_MARGIN_dB', 1.0, ...
         'cdfFile', fullfile('earthdata', 'reflectivity', 'reflectivity_CDF_v2.mat'), ...
@@ -310,6 +312,17 @@ function [payload, info] = optimizeReceiver(opts)
             P.cdfX.(port) = Xu;  P.cdfF.(port) = Fu;
             [Fq, iq] = unique(Fu, 'first');
             P.Ginv.(port) = interp1(Fq, Xu(iq), 1-GAMMA_REQ, 'linear', 'extrap');
+        end
+        % observations beyond the maximum incidence angle are not used; the
+        % angle follows from the reflected range and nadir angle, as in sai.c
+        aRx = P.rangeSR.*cos(P.thR) + sqrt(max(R_E^2 - (P.rangeSR.*sin(P.thR)).^2, 0));
+        keep = asind(min(1, aRx.*sin(P.thR)/R_E)) <= opts.THETA_MAX_DEG;
+        for fn = ["rangeTR" "rangeTS" "rangeSR" "theta" "iR" "iD" "thR" "thD" "grp" "altRef"]
+            P.(fn) = P.(fn)(keep);
+        end
+        P.n = numel(P.grp);
+        if ~all(keep)
+            vprintf('    %-8s %.1f%% of the sample beyond %g deg incidence left out\n', nm, 100*mean(~keep), opts.THETA_MAX_DEG);
         end
         PRE.(nm) = P;
         vprintf('    %-8s %7d observations in %d geometry group(s)\n', nm, P.n, nGrp);
@@ -555,10 +568,20 @@ function [payload, info] = optimizeReceiver(opts)
     % altitude extremes (worst required port per band)
     progress(0.7, 'checking the payload across orbits');
     ALT_CHECK_km = unique([bestX(iALT), 500, 700]);
+    % the flown T_I, set at the design altitude, is held at every altitude,
+    % so kappa follows the geometry there as in evaluateReceiver and sai.c
+    T_I_FLOWN = nan(1, nBand);
+    for ib = find(~isGNSS)
+        T_I_FLOWN(ib) = localFlownTI(PRE.(BAND(ib)), alt_Tx(ib), bestX(iALT)*1e3, R_E, c, ...
+                                     localIf(ROUND_IMPL, T_I_STEP, 0));
+    end
+    CONSTfix = CONST;  CONSTfix.T_I_FIXED = T_I_FLOWN;
+    objFix = @(x, nch) localMaximin(x, nch, PRE, BAND, isGNSS, freq, lambda, ...
+        EIRP_dB, BW, alt_Tx, KIND, CONSTfix);
     byOrbit = nan(nBand, nGrp, numel(ALT_CHECK_km));
     for ia = 1:numel(ALT_CHECK_km)
         xa = bestX;  xa(iALT) = ALT_CHECK_km(ia);
-        [~, dA] = objective(xa, bestN);
+        [~, dA] = objFix(xa, bestN);
         for ib = 1:nBand
             req = REQ_PORTS{ib};  w = inf(1, nGrp);
             for port = req, w = min(w, dA.(BAND(ib)).byGroup.(port)); end
@@ -683,6 +706,7 @@ function [payload, info] = optimizeReceiver(opts)
     payload.RES_MAX_km   = stored('%g', RES_MAX_km);   % resolution requirement
     payload.EQUAL_RES    = double(EQUAL_RES);
     payload.ROUND_IMPL   = double(ROUND_IMPL);         % 1 = T_I and dwell rounded to implementable values
+    payload.thetaMax_deg = opts.THETA_MAX_DEG;         % maximum incidence angle of an observation
     payload.T_I_STEP_s   = stored('%g', T_I_STEP);
     payload.DWELL_EPOCH_s = stored('%g', DWELL_EPOCH);
     payload.NF_VU_dB     = stored('%.6g', bestX(5));   % I/P LNA noise figure
@@ -829,6 +853,12 @@ function [f, detail, info] = localMaximin(x, nch, PRE, BAND, isGNSS, freq, lambd
         [sTR, sTS, sSR] = localAltScale(P.theta, alt_Tx(ib), P.altRef, altRx, K.R_E);
         RD = P.rangeTR .* sTR;
         RR = P.rangeTS .* sTS + P.rangeSR .* sSR;
+        % at a scaled altitude, keep the transmitters above the local
+        % horizontal plane of the receiver, as the access computation does
+        vis = true(size(RD));
+        if any(abs(altRx - P.altRef) >= 1)
+            vis = (K.R_E + alt_Tx(ib))^2 > (K.R_E + altRx).^2 + RD.^2;
+        end
 
         if isGNSS(ib)
             % signal-averaged S_0: with nch = number of signals, S_0*N_c is the
@@ -841,7 +871,11 @@ function [f, detail, info] = localMaximin(x, nch, PRE, BAND, isGNSS, freq, lambd
             S0 = (lambda(ib)^2/(4*pi)) * 10^(EIRP_dB(ib)/10) ...
                  / (K.kB*BW(ib)*Tsys) / Lmisc / (4*pi);
             tau = (P.rangeTS.*sTS + P.rangeSR.*sSR - RD)/K.c;
-            T_I = max(min(tau), 1e-5);  kap = -1;
+            if isfield(K, 'T_I_FIXED') && isfinite(K.T_I_FIXED(ib))
+                T_I = K.T_I_FIXED(ib);  kap = 1 - 2*min(tau, T_I)/T_I;
+            else
+                T_I = max(min(tau(vis)), 1e-5);  kap = -1;
+            end
         end
         Nc = T_I*BW(ib)*nch(ib);
         T_dwell = Tdw(ib);
@@ -870,7 +904,7 @@ function [f, detail, info] = localMaximin(x, nch, PRE, BAND, isGNSS, freq, lambd
             end
             % equal group weight: the mean over geometry groups of the
             % within-group fraction
-            passG = accumarray(P.grp, double(ok), [P.nGrp 1], @mean, NaN);
+            passG = accumarray(P.grp(vis), double(ok(vis)), [P.nGrp 1], @mean, NaN);
             pass  = mean(passG, 'omitnan');
             detail.(nm).(port) = pass;
             detail.(nm).byGroup.(port) = passG.';
@@ -947,6 +981,16 @@ function [sTR, sTS, sSR] = localAltScale(theta, altT, altRef, altNew, R_E)
     [a1, b1, d1] = localSpecular(theta, altRef, altT, R_E);
     [a2, b2, d2] = localSpecular(theta, altNew, altT, R_E);
     sSR = a2./a1;  sTS = b2./b1;  sTR = d2./d1;
+end
+
+function T_I = localFlownTI(P, altT, altRx, R_E, c, step)
+% LOCALFLOWNTI  Coherent integration time of a SoOp band flown at receiver
+%   altitude altRx [m]: the shortest tau_RD of the geometry sample, rounded
+%   down to a multiple of step when step > 0 (as T_integ7).
+    [sTR, sTS, sSR] = localAltScale(P.theta, altT, P.altRef, altRx, R_E);
+    tau = (P.rangeTS.*sTS + P.rangeSR.*sSR - P.rangeTR.*sTR)/c;
+    T_I = max(min(tau), 1e-5);
+    if step > 0, T_I = max(step, floor(T_I/step)*step); end
 end
 
 function [RSR, RTS, RTR] = localSpecular(theta, altR, altT, R_E)

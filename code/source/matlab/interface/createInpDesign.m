@@ -193,6 +193,7 @@ function writeSaiSection(projPath, model, runTag)
     putLine(sprintf('%.17g', model.etaHV),       'eta_HV (dwell-averaged)');
     putLine(sprintf('%.17g', model.etaL),        'eta_L  (dwell-averaged)');
     putLine(sprintf('%.17g', model.dirLinLoss_dB), 'Direct-arm loss on linear ports [dB]');
+    putLine(sprintf('%.17g', model.thetaMax_deg), 'Maximum incidence angle [deg]');
     putLine(cdfName(1),                          'CDF file, port X (V)');
     putLine(cdfName(2),                          'CDF file, port Y (H)');
     putLine(cdfName(3),                          'CDF file, port L (LHCP)');

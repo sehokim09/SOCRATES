@@ -295,6 +295,20 @@ function R = evaluateReceiver(payload, saiAnt, opts)
         end
     end
     vprintf('  geometry sample: %d file(s) pooled (%s)\n', numel(geomFiles), strjoin(geomFiles, ', '));
+    % observations beyond the maximum incidence angle of the design are not
+    % used; the angle follows from the reflected range and nadir angle, as in sai.c
+    thetaMax_deg = 90;
+    if isfield(payload, 'thetaMax_deg'), thetaMax_deg = payload.thetaMax_deg; end
+    R_E = physconst("earthradius");
+    for iTx = 1:numel(Tx)
+        T1 = data.(Tx(iTx));
+        aRx = T1.rangeSR.*cos(T1.lookAngElR) + sqrt(max(R_E^2 - (T1.rangeSR.*sin(T1.lookAngElR)).^2, 0));
+        keep = asind(min(1, aRx.*sin(T1.lookAngElR)/R_E)) <= thetaMax_deg;
+        data.(Tx(iTx)) = T1(keep, :);
+        if ~all(keep)
+            vprintf('  %-8s %.1f%% of the sample beyond %g deg incidence left out\n', Tx(iTx), 100*mean(~keep), thetaMax_deg);
+        end
+    end
 
     gamma = 0.8;               % an observation is "valid" when P > gamma
     iCDF  = [1 2 3 4 4 4 4];   % CDF column per transmitter (137/255/370/1575 MHz)
@@ -678,11 +692,11 @@ function R = evaluateReceiver(payload, saiAnt, opts)
     R.cdf = Scdf;
     R.model = struct();
     if RX_POL == "HVC"
-        R.model = observationModel(R, G_ant_dB, DIR_LIN_LOSS_dB, string(opts.source));
+        R.model = observationModel(R, G_ant_dB, DIR_LIN_LOSS_dB, thetaMax_deg, string(opts.source));
     end
 end
 
-function M = observationModel(R, G_ant_dB, dirLinLoss_dB, source)
+function M = observationModel(R, G_ant_dB, dirLinLoss_dB, thetaMax_deg, source)
 % OBSERVATIONMODEL  SAI Observation Model of Inp_Design.txt: the constants the
 %   C code reads per transmitter, and the per-port CDF tables on one F grid.
     Tx = R.Tx;  L = R.link;  B = R.budget;
@@ -701,6 +715,7 @@ function M = observationModel(R, G_ant_dB, dirLinLoss_dB, source)
     M.etaHV = B.eta_max_avg;
     M.etaL = B.eta_L_avg;
     M.dirLinLoss_dB = dirLinLoss_dB;
+    M.thetaMax_deg = thetaMax_deg;
     M.nTx = numel(Tx);
     M.tx = struct('name', cellstr(Tx), 'type', "SAI", 'cdfCol', 0, 'patTag', "", ...
                   'Glin_dBi', 0, 'S0', 0, 'Nc', 0, 'TI_s', 0, 'Nincoh', 0, 'spotbeam', false);
