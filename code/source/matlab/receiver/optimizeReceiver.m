@@ -93,7 +93,7 @@ function [payload, info] = optimizeReceiver(opts)
     if isempty(opts.progressFcn), progress = @(frac, msg) []; else, progress = opts.progressFcn; end
 
     %% Design space and objective
-    PASS_FLOOR   = 0.80;   % a band-and-port counts as delivering above this
+    PASS_FLOOR   = 0.90;   % a band-and-port counts as delivering above this
     GAMMA_REQ    = 0.80;   % per-observation success probability inside Test 2
     T_WINDOW_H   = opts.T_WINDOW_H;
     RES_MAX_km   = opts.RES_MAX_km;
@@ -166,7 +166,7 @@ function [payload, info] = optimizeReceiver(opts)
     %               + 1e-4*mean(all pass fractions),
     % margin = pass - PASS_REQ_BAND(band) on every required band-and-port;
     % over a budget the design is infeasible and pushed below every feasible one.
-    PASS_REQ_BAND   = [0.80 0.80 0.80 0.4];   % per band, on each required port (L-band: L1 only)
+    PASS_REQ_BAND   = [0.90 0.90 0.90 0.70];  % per band, on each required port, of the observations within THETA_MAX_DEG
     COST_WEIGHT     = 1e-2;   % objective units per (mass / MASS_BUDGET_kg)
     MASS_BUDGET_kg  = 1.5;    % antenna + channel mass allocation on the 6U
     STOW_BUDGET_U   = 2.0;    % stowed-volume allocation, U, on the 6U
