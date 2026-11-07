@@ -555,10 +555,20 @@ function [payload, info] = optimizeReceiver(opts)
     % altitude extremes (worst required port per band)
     progress(0.7, 'checking the payload across orbits');
     ALT_CHECK_km = unique([bestX(iALT), 500, 700]);
+    % the flown T_I, set at the design altitude, is held at every altitude,
+    % so kappa follows the geometry there as in evaluateReceiver and sai.c
+    T_I_FLOWN = nan(1, nBand);
+    for ib = find(~isGNSS)
+        T_I_FLOWN(ib) = localFlownTI(PRE.(BAND(ib)), alt_Tx(ib), bestX(iALT)*1e3, R_E, c, ...
+                                     localIf(ROUND_IMPL, T_I_STEP, 0));
+    end
+    CONSTfix = CONST;  CONSTfix.T_I_FIXED = T_I_FLOWN;
+    objFix = @(x, nch) localMaximin(x, nch, PRE, BAND, isGNSS, freq, lambda, ...
+        EIRP_dB, BW, alt_Tx, KIND, CONSTfix);
     byOrbit = nan(nBand, nGrp, numel(ALT_CHECK_km));
     for ia = 1:numel(ALT_CHECK_km)
         xa = bestX;  xa(iALT) = ALT_CHECK_km(ia);
-        [~, dA] = objective(xa, bestN);
+        [~, dA] = objFix(xa, bestN);
         for ib = 1:nBand
             req = REQ_PORTS{ib};  w = inf(1, nGrp);
             for port = req, w = min(w, dA.(BAND(ib)).byGroup.(port)); end
@@ -829,6 +839,12 @@ function [f, detail, info] = localMaximin(x, nch, PRE, BAND, isGNSS, freq, lambd
         [sTR, sTS, sSR] = localAltScale(P.theta, alt_Tx(ib), P.altRef, altRx, K.R_E);
         RD = P.rangeTR .* sTR;
         RR = P.rangeTS .* sTS + P.rangeSR .* sSR;
+        % at a scaled altitude, keep the transmitters above the local
+        % horizontal plane of the receiver, as the access computation does
+        vis = true(size(RD));
+        if any(abs(altRx - P.altRef) >= 1)
+            vis = (K.R_E + alt_Tx(ib))^2 > (K.R_E + altRx).^2 + RD.^2;
+        end
 
         if isGNSS(ib)
             % signal-averaged S_0: with nch = number of signals, S_0*N_c is the
@@ -841,7 +857,11 @@ function [f, detail, info] = localMaximin(x, nch, PRE, BAND, isGNSS, freq, lambd
             S0 = (lambda(ib)^2/(4*pi)) * 10^(EIRP_dB(ib)/10) ...
                  / (K.kB*BW(ib)*Tsys) / Lmisc / (4*pi);
             tau = (P.rangeTS.*sTS + P.rangeSR.*sSR - RD)/K.c;
-            T_I = max(min(tau), 1e-5);  kap = -1;
+            if isfield(K, 'T_I_FIXED') && isfinite(K.T_I_FIXED(ib))
+                T_I = K.T_I_FIXED(ib);  kap = 1 - 2*min(tau, T_I)/T_I;
+            else
+                T_I = max(min(tau(vis)), 1e-5);  kap = -1;
+            end
         end
         Nc = T_I*BW(ib)*nch(ib);
         T_dwell = Tdw(ib);
@@ -870,7 +890,7 @@ function [f, detail, info] = localMaximin(x, nch, PRE, BAND, isGNSS, freq, lambd
             end
             % equal group weight: the mean over geometry groups of the
             % within-group fraction
-            passG = accumarray(P.grp, double(ok), [P.nGrp 1], @mean, NaN);
+            passG = accumarray(P.grp(vis), double(ok(vis)), [P.nGrp 1], @mean, NaN);
             pass  = mean(passG, 'omitnan');
             detail.(nm).(port) = pass;
             detail.(nm).byGroup.(port) = passG.';
@@ -947,6 +967,16 @@ function [sTR, sTS, sSR] = localAltScale(theta, altT, altRef, altNew, R_E)
     [a1, b1, d1] = localSpecular(theta, altRef, altT, R_E);
     [a2, b2, d2] = localSpecular(theta, altNew, altT, R_E);
     sSR = a2./a1;  sTS = b2./b1;  sTR = d2./d1;
+end
+
+function T_I = localFlownTI(P, altT, altRx, R_E, c, step)
+% LOCALFLOWNTI  Coherent integration time of a SoOp band flown at receiver
+%   altitude altRx [m]: the shortest tau_RD of the geometry sample, rounded
+%   down to a multiple of step when step > 0 (as T_integ7).
+    [sTR, sTS, sSR] = localAltScale(P.theta, altT, P.altRef, altRx, R_E);
+    tau = (P.rangeTS.*sTS + P.rangeSR.*sSR - P.rangeTR.*sTR)/c;
+    T_I = max(min(tau), 1e-5);
+    if step > 0, T_I = max(step, floor(T_I/step)*step); end
 end
 
 function [RSR, RTS, RTR] = localSpecular(theta, altR, altT, R_E)
