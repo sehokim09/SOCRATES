@@ -1,7 +1,9 @@
-function calcScore(projName, DesignParamsObj, fom)
+function calcScore(projName, DesignParamsObj, fom, runTag)
 % function calcScore
 %
-%   Calculates score and save score_[projName].mat
+%   Calculates score and save score_<projName>_<runTag>.mat. runTag (optional)
+%   defaults to the run tag in sim/<projName>/Inp_Design.txt; pass the tag
+%   of the FoM file in fom so the two match.
 %
 %   A design candidate that violates a threshold, x < L for an SSF3 score
 %   (SSC, MSC) or x > U for an SSF9 score (cost, SRT, MRT), is infeasible
@@ -158,9 +160,8 @@ function calcScore(projName, DesignParamsObj, fom)
     ranked.infeasible.violation = violation(ranked.infeasible.idx);
     
     % Save
-    dir_out = fullfile('sim', projName, 'out');
-    filename_out = sprintf("score_%s.mat", projName);
-    save(fullfile(dir_out, filename_out), '-struct', 'ranked');
+    if nargin < 4, runTag = ""; end
+    save(runFilePath(projName, "score", runTag), '-struct', 'ranked');
 end
 
 function [feasible, violation] = checkThreshold(feasible, violation, ok, label)

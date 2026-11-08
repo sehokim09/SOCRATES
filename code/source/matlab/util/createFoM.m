@@ -1,7 +1,7 @@
 function createFoM(projName, DesignParamsObj, performTag, useParallel)
 % function createFoM
 %
-%   Read performance and cost NetCDF files and save FoM_[projName].mat
+%   Read performance and cost NetCDF files and save FoM_<projName>_<performTag>.mat
 %   with restart/checkpoint support for long runs.
 %
 %   performTag (optional) selects <constellation>_perform_<tag>.nc; by default
@@ -9,7 +9,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
 %   Inp_Design.txt (e.g. "SAI2610").
 %
 %   useParallel (optional, default false) computes the cases in a parfor loop:
-%   each case is saved to its own file in sim/<projName>/out/FoM_<projName>_cases/
+%   each case is saved to its own file in sim/<projName>/out/FoM_<projName>_<performTag>_cases/
 %   (the checkpoint; a re-run skips cases whose file exists), and the case files
 %   are merged into the MAT file once all of them exist. Without the Parallel
 %   Computing Toolbox the parfor loop runs serially.
@@ -62,8 +62,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
         mkdir(dir_out);
     end
 
-    filename_out = sprintf("FoM_%s.mat", projName);
-    filepath_out = fullfile(dir_out, filename_out);
+    filepath_out = runFilePath(projName, "fom", performTag);
 
     %% Design variables
     TxCombName = {DesignParamsObj.TxComb.name};
@@ -229,7 +228,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
         say(t0, 'all raw cases were already completed; skipping the raw loop');
     elseif useParallel
         %% Parallel: one checkpoint file per case, merged once all exist
-        caseDir = fullfile(dir_out, sprintf('FoM_%s_cases', projName));
+        caseDir = runFilePath(projName, "cases", performTag);
         if ~exist(caseDir, 'dir')
             mkdir(caseDir);
         end
@@ -474,18 +473,6 @@ function caseProgress(action, varargin)
     end
 end
 
-function tag = readRunTag(projName)
-% READRUNTAG  Run tag of the SAI Observation Model section of
-%   sim/<projName>/Inp_Design.txt, which names the performance files.
-    file = fullfile('sim', projName, 'Inp_Design.txt');
-    lines = readlines(file);
-    iTag = find(contains(lines, "! Run tag"), 1);
-    if isempty(iTag)
-        error('createFoM:noRunTag', 'No run tag in %s; pass performTag.', file);
-    end
-    tag = strtrim(extractBefore(lines(iTag), "!"));
-end
-
 function [rtDays, nMulti] = revisitTimeWindows(obsMask, windowHours, landmaskVec)
 % REVISITTIMEWINDOWS  Revisit time from window observations, in days.
 %
@@ -510,7 +497,7 @@ function R = fomCase(costFile, performFile, P)
 % FOMCASE  FoMs of one constellation from its cost and performance files.
 %
 %   Every field of R is the per-case value of the FoM variable of the same
-%   name in FoM_<projName>.mat; P holds the inputs shared by all cases.
+%   name in the FoM file; P holds the inputs shared by all cases.
     nWindow = P.nWindow;  nCol = P.nCol;  nRow = P.nRow;
     nFreqComb = P.nFreqComb;  nTxComb = P.nTxComb;  freqComb = P.freqComb;
     landmask = P.landmask;  nCell = P.nCell;
