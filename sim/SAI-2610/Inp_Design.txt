@@ -76,7 +76,7 @@ earthdata/reflectivity/reflectivity_CDF_v2_X.txt ! CDF file, port X (V)
 earthdata/reflectivity/reflectivity_CDF_v2_Y.txt ! CDF file, port Y (H)
 earthdata/reflectivity/reflectivity_CDF_v2_L.txt ! CDF file, port L (LHCP)
 sai/                                       ! Pattern subdirectory of ./ant_pat/
-SAI2610                                    ! Run tag: output file <constellation>_perform_<tag>.nc
+SAI2610c60                                 ! Run tag: output file <constellation>_perform_<tag>.nc
 7                                          ! Number of transmitters
 ! name  type  cdfCol  patTag  Glin_dBi  S0  Nc  TI_s  Nincoh  spotbeam
 ORBCOMM  SAI   1 CROSSDIPOLE_137  2.8666999999999998 1535448438593029.8 45 0.00089999999999999998 3488 0
