@@ -270,16 +270,61 @@ function [payload, info] = optimizeReceiver(opts)
     nGrp    = numel(GEOM);
     GRP_LBL = string({GEOM.label});
     ALT_REF = 500e3;                        % reference altitude of the scaling; per-file altitude is in P.altRef
-    STRIDE  = [10, 10, 10, 80];
+    N_PER_GROUP = 20000;                    % observations drawn per band and geometry group
+    K_TAU       = 200;                      % shortest-tau_RD observations kept per band and group for T_I
+    RNG_SEED    = 1;                        % seed of the draw: the sample is the same every run
     RES_DEG = 1.0;                          % pattern grid; must match SAIAntennaPattern
 
     Scdf = load(opts.cdfFile);
 
-    % Each geometry file is read once, keeping every STRIDE(ib)-th observation of band ib
+    % Each geometry file is read once. Observations beyond the maximum
+    % incidence angle are left out (the angle follows from the reflected
+    % range and nadir angle, as in sai.c), then N_PER_GROUP of the rest are
+    % drawn uniformly at random per band, with a seeded stream per band and
+    % group, so every group carries the same count and the sample is
+    % reproducible. The draw sets the pass fractions only: the geometry
+    % statistics come from the whole cut sample, so they do not depend on
+    % the draw. Those are the Fresnel diameter of each observation (its
+    % median sets the dwell cap), the arrival angles of the SAI bands (their
+    % percentiles) and the K_TAU observations of shortest tau_RD per group
+    % (their minimum, scaled to the receiver altitude, sets T_I).
     RAW = cell(1, nGrp);
+    nTot = zeros(nBand, nGrp);  nCut = zeros(nBand, nGrp);
+    FZall = cell(1, nBand);  arrRall = [];  arrDall = [];
+    TAU = repmat(struct('rangeTR', [], 'rangeTS', [], 'rangeSR', [], 'theta', [], 'altRef', []), 1, nBand);
     for ig = 1:nGrp
         progress(0.2*(ig-1)/nGrp, sprintf('reading geometry %d/%d (%s)', ig, nGrp, GRP_LBL(ig)));
-        RAW{ig} = localReadGeom(GEOM(ig).file, BAND, STRIDE);
+        G = localReadGeom(GEOM(ig).file, BAND);
+        for ib = 1:nBand
+            T = G.(BAND(ib));
+            aRx = T.rangeSR.*cos(T.lookAngElR) + sqrt(max(R_E^2 - (T.rangeSR.*sin(T.lookAngElR)).^2, 0));
+            iKeep = find(asind(min(1, aRx.*sin(T.lookAngElR)/R_E)) <= opts.THETA_MAX_DEG);
+            nTot(ib, ig) = numel(T.rangeSR);  nCut(ib, ig) = nTot(ib, ig) - numel(iKeep);
+            aRef = GEOM(ig).alt_m;
+            thK = asin(min(1, max(-1, (R_E+aRef)*sin(T.lookAngElR(iKeep))/R_E)));
+            thK(~isfinite(thK)) = pi/2;
+            Reff = T.rangeSR(iKeep).*T.rangeTS(iKeep)./(T.rangeSR(iKeep) + T.rangeTS(iKeep));
+            FZall{ib} = [FZall{ib}; 2*sqrt(lambda(ib)*Reff)./max(cos(thK), 0.2)];
+            if ib <= 3
+                arrRall = [arrRall; T.lookAngElR(iKeep)];  arrDall = [arrDall; T.lookAngElD(iKeep)]; %#ok<AGROW>
+            end
+            if ~isGNSS(ib)
+                [~, iS] = sort((T.rangeTS(iKeep) + T.rangeSR(iKeep) - T.rangeTR(iKeep))/c);
+                iS = iS(1:min(K_TAU, numel(iS)));  iT = iKeep(iS);
+                TAU(ib).rangeTR = [TAU(ib).rangeTR; T.rangeTR(iT)];  TAU(ib).rangeTS = [TAU(ib).rangeTS; T.rangeTS(iT)];
+                TAU(ib).rangeSR = [TAU(ib).rangeSR; T.rangeSR(iT)];  TAU(ib).theta   = [TAU(ib).theta; thK(iS)];
+                TAU(ib).altRef  = [TAU(ib).altRef; aRef*ones(numel(iT), 1)];
+            end
+            if numel(iKeep) < N_PER_GROUP
+                warning('optimizeReceiver:smallGroup', '%s, %s: %d observations within %g deg, fewer than N_PER_GROUP = %d; all kept.', ...
+                    BAND(ib), GRP_LBL(ig), numel(iKeep), opts.THETA_MAX_DEG, N_PER_GROUP);
+            end
+            rs = RandStream('mt19937ar', 'Seed', RNG_SEED + 100*ib + ig);
+            pick = iKeep(sort(randperm(rs, numel(iKeep), min(N_PER_GROUP, numel(iKeep)))));
+            for v = string(fieldnames(T)).', T.(v) = T.(v)(pick); end
+            G.(BAND(ib)) = T;
+        end
+        RAW{ig} = G;
     end
 
     PRE = struct();
@@ -312,21 +357,17 @@ function [payload, info] = optimizeReceiver(opts)
             [Fq, iq] = unique(Fu, 'first');
             P.Ginv.(port) = interp1(Fq, Xu(iq), 1-GAMMA_REQ, 'linear', 'extrap');
         end
-        % observations beyond the maximum incidence angle are not used; the
-        % angle follows from the reflected range and nadir angle, as in sai.c
-        aRx = P.rangeSR.*cos(P.thR) + sqrt(max(R_E^2 - (P.rangeSR.*sin(P.thR)).^2, 0));
-        keep = asind(min(1, aRx.*sin(P.thR)/R_E)) <= opts.THETA_MAX_DEG;
-        for fn = ["rangeTR" "rangeTS" "rangeSR" "theta" "iR" "iD" "thR" "thD" "grp" "altRef"]
-            P.(fn) = P.(fn)(keep);
-        end
-        P.n = numel(P.grp);
-        if ~all(keep)
-            vprintf('    %-8s %.1f%% of the sample beyond %g deg incidence left out\n', nm, 100*mean(~keep), opts.THETA_MAX_DEG);
-        end
+        P.tau = TAU(ib);                              % shortest-tau_RD observations, whole cut sample
         PRE.(nm) = P;
-        vprintf('    %-8s %7d observations in %d geometry group(s)\n', nm, P.n, nGrp);
+        vprintf('    %-8s %7d observations drawn from %d within %g deg (%.1f%% beyond left out), %d geometry group(s)', ...
+                nm, P.n, sum(nTot(ib,:) - nCut(ib,:)), opts.THETA_MAX_DEG, 100*sum(nCut(ib,:))/sum(nTot(ib,:)), nGrp);
+        if ~isGNSS(ib)
+            vprintf(';  min tau_RD %.3f ms', 1e3*min((P.tau.rangeTS + P.tau.rangeSR - P.tau.rangeTR)/c));
+        end
+        vprintf('\n');
     end
-    vprintf('  geometry groups (equal weight): %s\n', strjoin(GRP_LBL, ' | '));
+    vprintf('  geometry groups (equal weight, %d drawn per band and group, seed %d): %s\n', ...
+            N_PER_GROUP, RNG_SEED, strjoin(GRP_LBL, ' | '));
 
     % The L-band patch is fixed, so its pattern is generated once here
     PATCH_L = SAIAntennaPattern('PATCH', freq(4)/1e6, D_DECK, 0, RES_DEG);
@@ -334,14 +375,10 @@ function [payload, info] = optimizeReceiver(opts)
             PATCH_L.G_realized_dBi, PATCH_L.FB_cone_dB, PATCH_L.backFrac);
 
     % Resolution cap on the dwell. Footprint = first Fresnel zone (along-track
-    % diameter, median over the sample) + along-track smear v_gnd*T_dwell.
+    % diameter, median over the whole cut sample) + along-track smear v_gnd*T_dwell.
     v_gnd = sqrt(3.986004418e14/(R_E+ALT_REF))*R_E/(R_E+ALT_REF);
-    FZ_m = zeros(1, nBand);
-    for ib = 1:nBand
-        P = PRE.(BAND(ib));
-        Reff = P.rangeSR.*P.rangeTS./(P.rangeSR + P.rangeTS);
-        FZ_m(ib) = median(2*sqrt(lambda(ib)*Reff)./max(cos(P.theta), 0.2));
-    end
+    FZ_m = cellfun(@median, FZall);
+    clear FZall
     FZ_VU = max(FZ_m(1:3));  FZ_L = FZ_m(4);
     capVU = (RES_MAX_km*1e3 - FZ_VU)/v_gnd;
     capL  = (RES_MAX_km*1e3 - FZ_L )/v_gnd;
@@ -586,6 +623,9 @@ function [payload, info] = optimizeReceiver(opts)
     [~, dBest, iBest] = objFix(bestX, bestN);
     vprintf('\n  pass per band at the flown T_I [%s] ms: [%s]  (search T_I: [%s])\n', ...
             sprintf('%.1f ', T_I_FLOWN(~isGNSS)*1e3), sprintf('%.3f ', iBest.passBand), sprintf('%.3f ', pSearch));
+    nDraw = arrayfun(@(b) PRE.(b).n, BAND);
+    vprintf('  standard error of the pass fractions, sqrt(p(1-p)/n): [%s]\n', ...
+            sprintf('%.4f ', sqrt(iBest.passBand.*(1 - iBest.passBand)./nDraw)));
     localPrintDetail(dBest, BAND, vprintf);
     byOrbit = nan(nBand, nGrp, numel(ALT_CHECK_km));
     for ia = 1:numel(ALT_CHECK_km)
@@ -647,10 +687,7 @@ function [payload, info] = optimizeReceiver(opts)
         if isGNSS(ib)
             T_integ7(it) = T_I_GNSS;
         else
-            P = PRE.(BAND(ib));
-            [sTR, sTS, sSR] = localAltScale(P.theta, alt_Tx(ib), P.altRef, bestX(iALT)*1e3, R_E);
-            tau = (P.rangeTS.*sTS + P.rangeSR.*sSR - P.rangeTR.*sTR)/c;
-            T_integ7(it) = max(min(tau), 1e-5);
+            T_integ7(it) = max(localTauMin(PRE.(BAND(ib)).tau, alt_Tx(ib), bestX(iALT)*1e3, R_E, c, false), 1e-5);
         end
     end
     % Implementation rounding, down so no rounded value violates a
@@ -670,10 +707,8 @@ function [payload, info] = optimizeReceiver(opts)
 
     %% Solved payload, rounded as solved_payload.m stores it
     % 10th-90th percentile nadir angles of the reflected and direct
-    % arrivals, pooled over the three SAI bands of the geometry sample
-    arrR = [];  arrD = [];
-    for ib = 1:3, arrR = [arrR; PRE.(BAND(ib)).thR(:)]; arrD = [arrD; PRE.(BAND(ib)).thD(:)]; end %#ok<AGROW>
-    arrR = sort(arrR(isfinite(arrR))*180/pi);  arrD = sort(arrD(isfinite(arrD))*180/pi);
+    % arrivals, pooled over the three SAI bands of the whole cut sample
+    arrR = sort(arrRall(isfinite(arrRall))*180/pi);  arrD = sort(arrDall(isfinite(arrDall))*180/pi);
     pctIx = @(v, p) v(min(numel(v), max(1, round(p/100*numel(v)))));
 
     payload = struct();
@@ -863,7 +898,7 @@ function [f, detail, info] = localPassFraction(x, nch, PRE, BAND, isGNSS, freq, 
             if isfield(K, 'T_I_FIXED') && isfinite(K.T_I_FIXED(ib))
                 T_I = K.T_I_FIXED(ib);  kap = 1 - 2*min(tau, T_I)/T_I;
             else
-                T_I = max(min(tau(vis)), 1e-5);  kap = -1;
+                T_I = max(localTauMin(P.tau, alt_Tx(ib), altRx, K.R_E, K.c, true), 1e-5);  kap = -1;
             end
         end
         Nc = T_I*BW(ib)*nch(ib);
@@ -1004,12 +1039,24 @@ end
 
 function T_I = localFlownTI(P, altT, altRx, R_E, c, step)
 % LOCALFLOWNTI  Coherent integration time of a SoOp band flown at receiver
-%   altitude altRx [m]: the shortest tau_RD of the geometry sample, rounded
+%   altitude altRx [m]: the shortest tau_RD of the whole cut sample, rounded
 %   down to a multiple of step when step > 0 (as T_integ7).
-    [sTR, sTS, sSR] = localAltScale(P.theta, altT, P.altRef, altRx, R_E);
-    tau = (P.rangeTS.*sTS + P.rangeSR.*sSR - P.rangeTR.*sTR)/c;
-    T_I = max(min(tau), 1e-5);
+    T_I = max(localTauMin(P.tau, altT, altRx, R_E, c, false), 1e-5);
     if step > 0, T_I = max(step, floor(T_I/step)*step); end
+end
+
+function tmin = localTauMin(Pt, altT, altRx, R_E, c, visOnly)
+% LOCALTAUMIN  Shortest tau_RD [s] at receiver altitude altRx [m] over the
+%   shortest-tau_RD observations of the whole cut sample (Pt = P.tau). With
+%   visOnly, a transmitter below the receiver's local horizontal plane at a
+%   scaled altitude is skipped, as localPassFraction does.
+    [sTR, sTS, sSR] = localAltScale(Pt.theta, altT, Pt.altRef, altRx, R_E);
+    RD  = Pt.rangeTR.*sTR;
+    tau = (Pt.rangeTS.*sTS + Pt.rangeSR.*sSR - RD)/c;
+    if visOnly && any(abs(altRx - Pt.altRef) >= 1)
+        tau = tau((R_E + altT)^2 > (R_E + altRx).^2 + RD.^2);
+    end
+    tmin = min(tau);
 end
 
 function [RSR, RTS, RTR] = localSpecular(theta, altR, altT, R_E)
@@ -1098,24 +1145,23 @@ function off = localOffIP(K)
     if isfield(K, 'OFF_IP'), off = K.OFF_IP; else, off = zeros(1,3); end
 end
 
-function G = localReadGeom(file, BAND, STRIDE)
-% LOCALREADGEOM  The specular-point columns the optimizer uses from one file:
-%   every STRIDE(ib)-th observation of band ib. UFO and MUOS share the MUOS
-%   variables (MUOS keeps the spot-beam rows), so those are read whole once;
-%   the other bands are strided by ncread.
+function G = localReadGeom(file, BAND)
+% LOCALREADGEOM  The specular-point columns the optimizer uses from one file,
+%   every observation of each band. UFO and MUOS share the MUOS variables
+%   (MUOS keeps the spot-beam rows), so those are read once.
     VARS = ["rangeTR" "rangeTS" "rangeSR" "lookAngAzD" "lookAngElD" "lookAngAzR" "lookAngElR"];
     G = struct();
     muos = struct();
     if any(BAND == "UFO" | BAND == "MUOS")
         for v = VARS, muos.(v) = ncread(file, v + "_MUOS"); end
-        spot = find(logical(ncread(file, "flagSpotbeam")));
+        spot = logical(ncread(file, "flagSpotbeam"));
     end
     for ib = 1:numel(BAND)
         for v = VARS
             switch BAND(ib)
-                case "UFO",  G.(BAND(ib)).(v) = muos.(v)(1:STRIDE(ib):end);
-                case "MUOS", G.(BAND(ib)).(v) = muos.(v)(spot(1:STRIDE(ib):end));
-                otherwise,   G.(BAND(ib)).(v) = ncread(file, v + "_" + BAND(ib), 1, Inf, STRIDE(ib));
+                case "UFO",  G.(BAND(ib)).(v) = muos.(v);
+                case "MUOS", G.(BAND(ib)).(v) = muos.(v)(spot);
+                otherwise,   G.(BAND(ib)).(v) = ncread(file, v + "_" + BAND(ib));
             end
         end
     end
