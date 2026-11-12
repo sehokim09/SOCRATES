@@ -65,7 +65,7 @@ Galileo                   ! Tx 2 Name (From Inp_Inorbit.txt)
 GLONASS                   ! Tx 3 Name (From Inp_Inorbit.txt)
 Beidou                   ! Tx 4 Name (From Inp_Inorbit.txt)
 =================== SAI Observation Model (designReceiver) ===================
-optimizeReceiver 2026-11-11 16:44          ! Source and timestamp
+optimizeReceiver 2026-11-12 00:02          ! Source and timestamp
 0.80000000000000004                        ! gamma
 1                                          ! W_D
 0.051974891880158754                       ! eta_HV (dwell-averaged)
@@ -79,8 +79,8 @@ sai/                                       ! Pattern subdirectory of ./ant_pat/
 SAI2610c60                                 ! Run tag: output file <constellation>_perform_<tag>.nc
 7                                          ! Number of transmitters
 ! name  type  cdfCol  patTag  Glin_dBi  S0  Nc  TI_s  Nincoh  spotbeam
-ORBCOMM  SAI   1 CROSSDIPOLE_137  2.8666999999999998 1535448438593029.8 45 0.00089999999999999998 3488 0
-UFO      SAI   2 CROSSDIPOLE_255  3.4445999999999999 33221889385523176 70 0.0014 2250 0
+ORBCOMM  SAI   1 CROSSDIPOLE_137  2.8666999999999998 1535448438593029.8 45 0.00089999999999999998 3487 0
+UFO      SAI   2 CROSSDIPOLE_255  3.4445999999999999 33221889385523176 70 0.0014 2252 0
 MUOS     SAI   3 CROSSDIPOLE_370  3.8915000000000002 925236199557429.75 7000 0.0014 2301 1
 GPS      GNSS  4 PATCH_1575       6.9067999999999996 11448409497451.826 2046 0.001 3400 0
 Galileo  GNSS  4 PATCH_1575       6.9067999999999996 19282024691324.395 2046 0.001 3400 0
