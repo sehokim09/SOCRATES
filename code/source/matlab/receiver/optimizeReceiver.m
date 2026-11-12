@@ -508,7 +508,7 @@ function [payload, info] = optimizeReceiver(opts)
     if EQUAL_RES, bestX(iL) = bestX(iVU) + DWELL_OFFSET; X0(iL) = X0(iVU) + DWELL_OFFSET; end
     [~, dBest, iBest] = objective(bestX, bestN);
     vprintf('\n===== SOLVED DESIGN =====\n');
-    vprintf('  pass per band [%s] (min over required ports): [%s]   (baseline [%s])\n', ...
+    vprintf('  pass per band [%s] (all required ports jointly): [%s]   (baseline [%s])\n', ...
             strjoin(BAND, ' '), sprintf('%.3f ', iBest.passBand), sprintf('%.3f ', i0.passBand));
     vprintf('  payload mass: %.2f kg of %.1f kg   (reflector %.2f, booms %.2f, standoff %.2f, elements %.2f, channels %.2f);   stowed %.1f of %.1f U\n', ...
             iBest.cost.mass_kg, MASS_BUDGET_kg, iBest.cost.surface_kg, iBest.cost.booms_kg, ...
@@ -535,7 +535,7 @@ function [payload, info] = optimizeReceiver(opts)
         objective = @(x, nch) localPassFraction(x, nch, PRE, BAND, isGNSS, freq, lambda, ...
             EIRP_dB, BW, alt_Tx, KIND, CONST);
         pOpt = iBest.passBand;
-        [~, dBest, iBest] = objective(bestX, bestN);
+        [~, ~, iBest] = objective(bestX, bestN);
         vprintf('\n  implementation rounding: dwell [%.2f %.2f] -> [%.2f %.2f] s (whole %.2g s epochs);  pass per band [%s] -> [%s]\n', ...
                 dwOpt, bestX([iVU iL]), DWELL_EPOCH, sprintf('%.3f ', pOpt), sprintf('%.3f ', iBest.passBand));
     end
@@ -566,8 +566,8 @@ function [payload, info] = optimizeReceiver(opts)
     end
 
     % One payload for all orbits: the design is held fixed through the
-    % constellation tradespace, so report its pass fraction per band (min
-    % over the required ports) per geometry group and at the altitude extremes
+    % constellation tradespace, so report its pass fraction per band (every
+    % required port) per geometry group and at the altitude extremes
     progress(0.7, 'checking the payload across orbits');
     ALT_CHECK_km = unique([bestX(iALT), 500, 700]);
     % the flown T_I, set at the design altitude, is held at every altitude,
@@ -580,17 +580,22 @@ function [payload, info] = optimizeReceiver(opts)
     CONSTfix = CONST;  CONSTfix.T_I_FIXED = T_I_FLOWN;
     objFix = @(x, nch) localPassFraction(x, nch, PRE, BAND, isGNSS, freq, lambda, ...
         EIRP_dB, BW, alt_Tx, KIND, CONSTfix);
+    % The search ran at T_I = min tau_RD; the reported pass fractions are
+    % those of the flown (rounded) T_I, as evaluateReceiver and sai.c use it
+    pSearch = iBest.passBand;
+    [~, dBest, iBest] = objFix(bestX, bestN);
+    vprintf('\n  pass per band at the flown T_I [%s] ms: [%s]  (search T_I: [%s])\n', ...
+            sprintf('%.1f ', T_I_FLOWN(~isGNSS)*1e3), sprintf('%.3f ', iBest.passBand), sprintf('%.3f ', pSearch));
+    localPrintDetail(dBest, BAND, vprintf);
     byOrbit = nan(nBand, nGrp, numel(ALT_CHECK_km));
     for ia = 1:numel(ALT_CHECK_km)
         xa = bestX;  xa(iALT) = ALT_CHECK_km(ia);
         [~, dA] = objFix(xa, bestN);
         for ib = 1:nBand
-            req = REQ_PORTS{ib};  w = inf(1, nGrp);
-            for port = req, w = min(w, dA.(BAND(ib)).byGroup.(port)); end
-            byOrbit(ib, :, ia) = w;
+            byOrbit(ib, :, ia) = dA.(BAND(ib)).byGroup.joint;
         end
     end
-    vprintf('\n===== FIXED PAYLOAD ACROSS ORBITS (pass fraction per band, min over the required ports) =====\n');
+    vprintf('\n===== FIXED PAYLOAD ACROSS ORBITS (pass fraction per band, all required ports jointly) =====\n');
     for ia = 1:numel(ALT_CHECK_km)
         vprintf('  altitude %g km%s\n', ALT_CHECK_km(ia), ...
             localIf(abs(ALT_CHECK_km(ia)*1e3 - ALT_REF) > 1, ' (link geometry scaled)', ''));
@@ -601,21 +606,20 @@ function [payload, info] = optimizeReceiver(opts)
     end
 
     %% Dwell trade
-    %   Pass fraction per band (min over the required ports) against the I/P
-    %   dwell at the solved receiver and channel counts, with the dwells
-    %   entering continuously; the L-band dwell keeps the solved offset.
+    %   Pass fraction per band (all required ports jointly) against the I/P
+    %   dwell at the solved receiver, channel counts and flown T_I, with the
+    %   dwells entering continuously; the L-band dwell keeps the solved offset.
     progress(0.75, 'dwell trade');
     nSw = 36;  Tsw = linspace(0.2, 1.25*capVU, nSw);
     passT = nan(nSw, nBand);
-    CONSTsw = CONST;  CONSTsw.DWELL_EPOCH = 0;
+    CONSTsw = CONSTfix;  CONSTsw.DWELL_EPOCH = 0;
     objSw = @(x, nch) localPassFraction(x, nch, PRE, BAND, isGNSS, freq, lambda, EIRP_dB, BW, alt_Tx, KIND, CONSTsw);
     offL = bestX(iL) - bestX(iVU);
     for is = 1:nSw
         xt = bestX;  xt(iVU) = Tsw(is);  xt(iL) = Tsw(is) + offL;
         [~, dT] = objSw(xt, bestN);
         for ib = 1:nBand
-            v = Inf;  for p = REQ_PORTS{ib}, v = min(v, dT.(BAND(ib)).(p)); end
-            passT(is, ib) = v;
+            passT(is, ib) = dT.(BAND(ib)).joint;
         end
     end
     fpT = (FZ_VU + v_gnd*Tsw)/1e3;                     % design footprint, km
@@ -704,8 +708,8 @@ function [payload, info] = optimizeReceiver(opts)
     payload.T_integ_s    = stored('%.8g', T_integ7);
     payload.N_incoh      = N_incoh7;
     payload.N_chan       = NCH7;                       % SoOp carriers, GNSS signals
-    payload.maximin      = stored('%.6g', iBest.passWorst);   % worst pass fraction over the bands and required ports
-    payload.passBand     = stored('%.4g', iBest.passBand);    % per band, min over required ports
+    payload.maximin      = stored('%.6g', iBest.passWorst);   % worst band pass fraction
+    payload.passBand     = stored('%.4g', iBest.passBand);    % per band, passing on every required port
     payload.PASS_GAIN_TOL = stored('%g', PASS_GAIN_TOL);      % carrier-count selection tolerance
     payload.mass_kg      = stored('%.4g', iBest.cost.mass_kg);      % I/P antenna + channels
     payload.mass_chan_kg = stored('%.4g', iBest.cost.channels_kg);  % of which correlator channels
@@ -720,7 +724,7 @@ function [payload, info] = optimizeReceiver(opts)
     payload.geomFiles    = string({GEOM.file});
     payload.GRGD_delivered_dB = stored('%.1f', [min(grgd(1:3)), max(grgd(1:3))]);   % median nadir-to-zenith ratio over the sample, SAI bands (min max)
     payload.altCheck_km  = stored('%g', ALT_CHECK_km);
-    payload.passByOrbit  = reshape(stored('%.4f', byOrbit(:)), [nBand nGrp numel(ALT_CHECK_km)]);   % band x group x altitude, min over required ports
+    payload.passByOrbit  = reshape(stored('%.4f', byOrbit(:)), [nBand nGrp numel(ALT_CHECK_km)]);   % band x group x altitude, every required port
 
     %% The rest of the solution
     info = struct();
@@ -787,8 +791,10 @@ end
 function [f, detail, info] = localPassFraction(x, nch, PRE, BAND, isGNSS, freq, lambda, ...
                                                EIRP_dB, BW, alt_Tx, KIND, K)
 % LOCALPASSFRACTION  Pass fraction per band and port for design vector x,
-%   and the search objective: the mean over the bands of the minimum over
-%   the required ports.
+%   and the search objective: the mean over the bands of the band pass
+%   fraction, the fraction of observations that pass both tests on every
+%   required port of the band (detail.(band).joint; the per-port fractions
+%   stay in detail.(band).(port) as diagnostics).
 %   x = [D_gp, h, T_dwell_VU, T_dwell_L, NF_VU, NF_L, L_misc, alt_Rx_km]
 %   The I/P patterns are generated here for the trial (D_gp, h) with
 %   SAIAntennaPattern and cached in K.CACHE across calls that leave
@@ -806,7 +812,7 @@ function [f, detail, info] = localPassFraction(x, nch, PRE, BAND, isGNSS, freq, 
     NF = [x(5) x(5) x(5) x(6)];  Lmisc = 10^(x(7)/10);  altRx = x(8)*1e3;
     detail = struct();  info = struct();  passWorst = Inf;
     sumAll = 0;  nAll = 0;      % mean over every port, the tie-breaker
-    passBand = inf(1, numel(BAND));   % min over the REQUIRED ports of each band
+    passBand = nan(1, numel(BAND));   % per band, passing on every REQUIRED port
 
     key = [D_gp h x(8)];                              % altitude sets the Earth-limb sky fraction
     if ~isKey(K.CACHE, 'key') || any(abs(K.CACHE('key') - key) > 1e-12)
@@ -864,6 +870,7 @@ function [f, detail, info] = localPassFraction(x, nch, PRE, BAND, isGNSS, freq, 
         T_dwell = Tdw(ib);
         eb = sqrt(1 + (K.eta_avg*sqrt(T_dwell/T_I))^2) - 1;
 
+        okReq = true(P.n, 1);                         % passes on every required port so far
         for port = K.PORTS
             % X, Y: one port pattern read at both arrival directions, the
             % direct path pays the mismatch. L: the reflected arm reads the L
@@ -891,15 +898,21 @@ function [f, detail, info] = localPassFraction(x, nch, PRE, BAND, isGNSS, freq, 
             pass  = mean(passG, 'omitnan');
             detail.(nm).(port) = pass;
             detail.(nm).byGroup.(port) = passG.';
-            if any(K.reqPorts{ib} == port), passWorst = min(passWorst, pass);  passBand(ib) = min(passBand(ib), pass); end
+            if any(K.reqPorts{ib} == port), okReq = okReq & ok(:); end
             sumAll = sumAll + pass;  nAll = nAll + 1;
         end
+        % band pass fraction: every required port at once, same group weighting
+        passG = accumarray(P.grp(vis), double(okReq(vis)), [P.nGrp 1], @mean, NaN);
+        passBand(ib) = mean(passG, 'omitnan');
+        detail.(nm).joint = passBand(ib);
+        detail.(nm).byGroup.joint = passG.';
+        passWorst = min(passWorst, passBand(ib));
     end
     % Objective: mean per-band pass fraction, with 1e-4 times the mean over
     % every port (L included) as the tie-break
     [massKg, stowU, costN, parts] = localAntennaCost(D_gp, h, nch, K);
-    info.passWorst   = passWorst;                    % worst over the bands and required ports
-    info.passBand    = passBand;                     % per band, min over required ports
+    info.passWorst   = passWorst;                    % worst band pass fraction
+    info.passBand    = passBand;                     % per band, passing on every required port
     info.cost = parts;
     info.cost.mass_kg = massKg;  info.cost.stow_U = stowU;  info.cost.costN = costN;
     info.inBudget = massKg <= K.MASS_BUDGET_kg && stowU <= K.STOW_BUDGET_U;
@@ -1050,12 +1063,12 @@ end
 
 function localPrintDetail(detail, BAND, vprintf)
     ports = string(fieldnames(detail.(BAND(1))))';
-    ports = ports(ports ~= "byGroup");          % per-group breakdown is printed separately
-    vprintf('\n  %-10s', 'band'); vprintf(' %10s', "port " + ports); vprintf('\n');
+    ports = ports(~ismember(ports, ["byGroup" "joint"]));   % per-group breakdown is printed separately
+    vprintf('\n  %-10s', 'band'); vprintf(' %10s', "port " + ports); vprintf(' %10s\n', 'joint');
     for ib = 1:numel(BAND)
         vprintf('  %-10s', BAND(ib));
         for p = ports, vprintf(' %10.3f', detail.(BAND(ib)).(p)); end
-        vprintf('\n');
+        vprintf(' %10.3f\n', detail.(BAND(ib)).joint);
     end
 end
 
