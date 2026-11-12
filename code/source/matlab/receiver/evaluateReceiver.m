@@ -79,7 +79,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
     RMSE_SM_target = opts.RMSE_target;  RMSE_L_target = opts.RMSE_target_L;
 
     %% Payload and antenna
-    vprintf('\n===== PARAMETERS FROM THE PAYLOAD (RX_POL %s, maximin %.3f) =====\n', payload.RX_POL, payload.maximin);
+    vprintf('\n===== PARAMETERS FROM THE PAYLOAD (RX_POL %s, worst pass %.3f) =====\n', payload.RX_POL, payload.maximin);
     if payload.RX_POL ~= RX_POL
         error('evaluateReceiver:payloadPolMismatch', ...
             'The payload was optimized for RX_POL = "%s" but this run is "%s".', payload.RX_POL, RX_POL);
