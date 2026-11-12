@@ -37,7 +37,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
 %     R.acc        HVC: achieved reflectivity error and product tiers per transmitter
 %     R.hvc        HVC: detection on L, validity on X and Y, LHCP product
 %     R.combo      H&V port combination (Frechet bounds)
-%     R.evalSum    HVC: product availability per transmitter
+%     R.evalSum    HVC: product availability per transmitter (HV exact; HV_lo/HV_hi its bounds)
 %     R.geomFiles, R.grp   pooled geometry files and the file index of each point
 %     R.cdf        the reflectivity CDFs as loaded
 %     R.model      HVC: SAI Observation Model section of Inp_Design.txt and its CDF tables
@@ -644,8 +644,9 @@ function R = evaluateReceiver(payload, saiAnt, opts)
         end
         % Product availability (single_ant_model.m wrote it to evaluation_summary.m)
         evalSum.order     = Tx;
-        evalSum.HV_lo     = max(0, hvc.vX + hvc.vY - 1);   % H&V product, Frechet lower bound
-        evalSum.HV_hi     = min(hvc.vX, hvc.vY);           % H&V product, upper bound
+        evalSum.HV        = arrayfun(@(k) mean(acc.(Tx(k)).okHV), 1:nTx);   % H&V product: X and Y both pass, per observation
+        evalSum.HV_lo     = max(0, hvc.vX + hvc.vY - 1);   % Frechet lower bound on evalSum.HV
+        evalSum.HV_hi     = min(hvc.vX, hvc.vY);           % Frechet upper bound on evalSum.HV
         evalSum.LHCP      = hvc.lcp;                       % LHCP product on the synthesized port
         evalSum.LHCP_only = arrayfun(@(k) acc.(Tx(k)).fracLonly, 1:nTx);
     end
