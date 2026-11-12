@@ -45,7 +45,7 @@ function [payload, info] = optimizeReceiver(opts)
 %            value rounded as solved_payload.m stores it, so the pattern
 %            generator and the evaluator see the same numbers
 %   info     the rest of the solution: the summary line and generation time,
-%            the baseline, the pattern-window specification, the receiver
+%            the baseline, the delivered G_R/G_D, the receiver
 %            design table and the dwell trade sweep
 %
 %   Ported from optimize_sai_payload.m of the ASR SAI design (2026-10-21).
@@ -97,8 +97,6 @@ function [payload, info] = optimizeReceiver(opts)
     if isempty(opts.progressFcn), progress = @(frac, msg) []; else, progress = opts.progressFcn; end
 
     %% Design space and objective
-    PASS_FLOOR   = 0.90;   % antenna specification only: the G_R/G_D window is where both
-                           % tests pass on at least this fraction; not a design requirement
     PASS_GAIN_TOL = 0.005; % a carrier count is accepted when its pass fraction is within
                            % this of the band's maximum over the allowed counts
     GAMMA_REQ    = 0.80;   % per-observation success probability inside Test 2
@@ -622,24 +620,12 @@ function [payload, info] = optimizeReceiver(opts)
     end
     fpT = (FZ_VU + v_gnd*Tsw)/1e3;                     % design footprint, km
 
-    %% Antenna pattern specification
-    %   The admissible window of nadir-to-zenith gain ratio G_R/G_D for each
-    %   SAI transmitter, by shifting the zenith response of the solved pattern
-    %   and re-evaluating both tests; the window is where both pass fractions
-    %   stay above PASS_FLOOR. This is a specification of the pattern, separate
-    %   from the carrier-count selection.
-    ASYM_SWEEP_dB = -10:0.25:30;                       % shift of the zenith response, dB
-    specPort = PORTS(1);                                % L for LHCP/HVC, X for HV
-    spec = localAntennaWindow(bestX, bestN, iBest, PRE, BAND, isGNSS, lambda, ...
-                              EIRP_dB, BW, alt_Tx, CONST, ASYM_SWEEP_dB, specPort, PASS_FLOOR);
-    vprintf('\n===== ANTENNA PATTERN SPECIFICATION (port %s, both tests >= %.2f) =====\n', specPort, PASS_FLOOR);
-    vprintf('%-9s %10s %18s %9s %10s %20s\n', 'band', 'delivered', 'G_R/G_D window', 'optimum', 'G_D floor', 'upper edge set by');
-    for ib = 1:3
-        vprintf('%-9s %8.1f dB %8.1f to %-6.1f %7.1f dB %7.1f dBi %20s\n', BAND(ib), spec.base(ib), ...
-                spec.lo(ib), spec.hi(ib), spec.opt(ib), spec.GDfloor(ib), spec.limit(ib));
-    end
-    vprintf('  common: %.1f to %.1f dB (nominal %.1f), G_D >= %.1f dBi; delivered %.1f to %.1f dB\n', ...
-            spec.cLo, spec.cHi, (spec.cLo+spec.cHi)/2, spec.cGD, min(spec.base(1:3)), max(spec.base(1:3)));
+    %% Delivered nadir-to-zenith gain ratio
+    %   Median over the sample of G_R/G_D at the arrival angles of each SAI
+    %   band, on the first port (L for LHCP/HVC, X for HV). Reported only.
+    grgd = localDeliveredRatio(iBest, PRE, BAND, isGNSS, PORTS(1), CONST);
+    vprintf('\n===== DELIVERED G_R/G_D (port %s, median over the sample) =====\n', PORTS(1));
+    for ib = 1:3, vprintf('%-9s %8.1f dB\n', BAND(ib), grgd(ib)); end
 
     %% Per-transmitter values
     TX7  = ["ORBCOMM","UFO","MUOS","GPS","Galileo","GLONASS","Beidou"];
@@ -732,8 +718,7 @@ function [payload, info] = optimizeReceiver(opts)
     payload.altIsScaled  = double(abs(bestX(iALT)*1e3 - ALT_REF) > 1);   % 1 = link geometry scaled from 500 km; coverage not valid
     payload.geomGroups   = GRP_LBL;
     payload.geomFiles    = string({GEOM.file});
-    payload.GRGD_delivered_dB = stored('%.1f', [min(spec.base(1:3)), max(spec.base(1:3))]);   % delivered nadir-to-zenith ratio, SAI bands (min max)
-    payload.GRGD_window_dB    = stored('%.1f', [spec.cLo, spec.cHi]);   % Test 2 window common to the SAI transmitters
+    payload.GRGD_delivered_dB = stored('%.1f', [min(grgd(1:3)), max(grgd(1:3))]);   % median nadir-to-zenith ratio over the sample, SAI bands (min max)
     payload.altCheck_km  = stored('%g', ALT_CHECK_km);
     payload.passByOrbit  = reshape(stored('%.4f', byOrbit(:)), [nBand nGrp numel(ALT_CHECK_km)]);   % band x group x altitude, min over required ports
 
@@ -751,7 +736,7 @@ function [payload, info] = optimizeReceiver(opts)
     % the carrier-count selection: pass fraction per band against its count
     % (GNSS: signals tracked) at the chosen ground plane
     info.carriers = struct('PASS_GAIN_TOL', PASS_GAIN_TOL, 'byCount', gpSel(igSel).byCount);
-    info.spec = spec;
+    info.GRGD_dB = grgd;   % median G_R/G_D per SAI band [dB]
     info.byOrbit = byOrbit;
     % what the receiver design table of the manuscript reports
     refBand = BAND(find(FZ_m(1:3) == FZ_VU, 1));
@@ -1078,59 +1063,21 @@ function out = localIf(cond, a, b)
     if cond, out = a; else, out = b; end
 end
 
-function spec = localAntennaWindow(x, nch, info, PRE, BAND, isGNSS, lambda, EIRP_dB, BW, alt_Tx, K, sweep, port, floorFrac)
-% LOCALANTENNAWINDOW  Admissible G_R/G_D window per SAI band by a zenith-side sweep.
-    TdIP = x(3) + localOffIP(K);
-    if isfield(K, 'DWELL_EPOCH') && K.DWELL_EPOCH > 0
-        TdIP = max(K.DWELL_EPOCH, floor(TdIP/K.DWELL_EPOCH + 1e-9)*K.DWELL_EPOCH);
-    end
-    T_dwell = [TdIP x(4)];  Lmisc = 10^(x(7)/10);  altRx = x(8)*1e3;
-    nA = numel(sweep);
-    spec = struct('base',nan(1,4), 'lo',nan(1,4), 'hi',nan(1,4), 'opt',nan(1,4), ...
-                  'GDfloor',nan(1,4), 'limit',strings(1,4));
+function grgd = localDeliveredRatio(info, PRE, BAND, isGNSS, port, K)
+% LOCALDELIVEREDRATIO  Median G_R/G_D over the sample per SAI band, in dB.
+    grgd = nan(1,4);
     for ib = 1:3
         if isGNSS(ib), continue; end
         nm = BAND(ib);  P = PRE.(nm);  A = info.(nm);
-        S0 = (lambda(ib)^2/(4*pi)) * 10^(EIRP_dB(ib)/10) / (K.kB*BW(ib)*A.Tsys) / Lmisc / (4*pi);
-        [sTR, sTS, sSR] = localAltScale(P.theta, alt_Tx(ib), P.altRef, altRx, K.R_E);
-        RD = P.rangeTR.*sTR;  RR = P.rangeTS.*sTS + P.rangeSR.*sSR;
-        tau = (RR - RD)/K.c;  T_I = max(min(tau), 1e-5);  kap = -1;
-        Nc = T_I*BW(ib)*nch(ib);
-        eb = sqrt(1 + (K.eta_avg*sqrt(T_dwell(ib)/T_I))^2) - 1;
-        C  = (eb*Nc - kap - 2)/2;
-        if C <= 1, spec.limit(ib) = "Test 1 infeasible"; continue; end
-        sdth = 4/(eb*Nc - kap - 4);
         switch port
             case "X",  PWr = A.XX.^2 + A.XY.^2;  PWd = PWr;   gpk = A.G_realized_dBi;   pm = K.POLMIS;
             case "Y",  PWr = A.YX.^2 + A.YY.^2;  PWd = PWr;   gpk = A.G_realized_dBi;   pm = K.POLMIS;
             case "L",  PWr = A.L.^2;             PWd = A.R.^2; gpk = A.G_realized_cp_dBi; pm = 0;
         end
-        GR0 = 10*log10(max(PWr(P.iR), 1e-30)) + gpk;
-        GD0 = 10*log10(max(PWd(P.iD), 1e-30)) + gpk - pm;
-        spec.base(ib) = median(GR0 - GD0);
-        gdf = sort(10*log10(sdth*RD.^2/S0));
-        spec.GDfloor(ib) = gdf(max(1, round(floorFrac*numel(gdf))));
-        pass1 = nan(nA,1);  pass2 = nan(nA,1);
-        for iA = 1:nA
-            GD = GD0 - sweep(iA);
-            SD = S0*10.^(GD/10)./RD.^2;
-            beta = 10.^((20*log10(RD./RR) + GR0 - GD)/10);
-            [Pobs, ok1] = localWindowPass(SD, eb*Nc, kap, beta, P.cdfX.(port), P.cdfF.(port));
-            pass2(iA) = mean(Pobs > K.gammaReq);
-            pass1(iA) = mean(ok1);
-        end
-        ok = pass2 >= floorFrac & pass1 >= floorFrac;
-        if any(ok)
-            i1 = find(ok,1,'first');  i2 = find(ok,1,'last');
-            spec.lo(ib) = spec.base(ib) + sweep(i1);  spec.hi(ib) = spec.base(ib) + sweep(i2);
-            sc = pass2;  sc(~ok) = -1;  [~, iOpt] = max(sc);  spec.opt(ib) = spec.base(ib) + sweep(iOpt);
-            if i2 < nA && pass1(i2+1) < floorFrac, spec.limit(ib) = "Test 1 tail";
-            else, spec.limit(ib) = "Test 2 upper edge"; end
-        else
-            spec.limit(ib) = "no admissible window";
-        end
+        GR = 10*log10(max(PWr(P.iR), 1e-30)) + gpk;
+        GD = 10*log10(max(PWd(P.iD), 1e-30)) + gpk - pm;
+        grgd(ib) = median(GR - GD);
     end
-    spec.cLo = max(spec.lo(1:3));  spec.cHi = min(spec.hi(1:3));  spec.cGD = max(spec.GDfloor(1:3));
 end
 
 function off = localOffIP(K)
