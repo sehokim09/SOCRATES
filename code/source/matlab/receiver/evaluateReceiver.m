@@ -190,7 +190,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
     %   coefficients (Kim et al. 2023, Table V, averaged over inclinations), and
     %   the RMSE target.
     coefHV = struct('a', (0.4369+0.4232)/2, 'aT', (2.363e-4+3.204e-4)/2, 'b', (0.0378+0.0370)/2, 'target', 0.06);
-    coefL  = struct('a', (0.6222+0.6385)/2, 'aT', (2.542e-4+2.277e-4)/2, 'b', (0.0844+0.0789+0.0810+0.0803)/4, 'target', 0.10);
+    coefL  = struct('a', (0.6222+0.6385)/2, 'aT', (2.542e-4+2.277e-4)/2, 'b', (0.0844+0.0789)/2, 'target', 0.10);
     switch RX_POL
         case "LHCP"
             portList = "L";                cf = coefL;   polLabel = "LHCP";
