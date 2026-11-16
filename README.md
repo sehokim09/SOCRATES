@@ -19,9 +19,9 @@ Use SOCRATES-Retrieval for end-to-end retrieval analysis using multi-SoOp. SOCRA
 
 The GNU Compiler Collection with C11 standard on a Unix or Linux platform is recommended to compile the code. Additional software packages OpenMPI and netCDF are required for the compilation. The latest versions of the packages are recommended. OpenMPI is used for multi-processing the mission design processes. NetCDF is for creating, reading, and writing the NetCDF files.
 
-SOCRATES can be accessed from the following GitHub repository: <https://github.itap.purdue.edu/RadioNavigationLab/SOCRATES>. To install from GitHub:
+SOCRATES can be accessed from the following GitHub repository: <https://github.com/uh-manoa-kimlab/SOCRATES>. To install from GitHub:
 
-  1. Download the source code from the latest release or clone the code from GitHub: `$ git clone git@github.itap.purdue.edu:RadioNavigationLab/SOCRATES.git`
+  1. Download the source code from the latest release or clone the code from GitHub: `$ git clone https://github.com/uh-manoa-kimlab/SOCRATES.git`
   2. Open a terminal on the top-level directory (i.e., .../SOCRATES) and run `$ make` to compile the simulator. Note that `$ make clean` deletes the existing object files and the executable file.
   3. An executable file SOCRATES should be created in the top-level directory.
 
@@ -32,7 +32,7 @@ In the current version, the following large files must exist in each correspondi
 
 These files are distributed through releases. To download:
 
-  1. Visit <https://github.itap.purdue.edu/RadioNavigationLab/SOCRATES/releases> and click the latest release.
+  1. Visit <https://github.com/uh-manoa-kimlab/SOCRATES/releases> and click the latest release.
   2. Download the necessary large files attached to the release.
   3. Place each file in each corresponding directory.
 
