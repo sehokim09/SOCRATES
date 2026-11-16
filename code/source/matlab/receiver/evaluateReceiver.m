@@ -37,7 +37,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
 %     R.acc        HVC: achieved reflectivity error and product tiers per transmitter
 %     R.hvc        HVC: detection on L, validity on X and Y, LHCP product
 %     R.combo      H&V port combination (Frechet bounds)
-%     R.evalSum    HVC: product availability per transmitter
+%     R.evalSum    HVC: product availability per transmitter (HV exact; HV_lo/HV_hi its bounds)
 %     R.geomFiles, R.grp   pooled geometry files and the file index of each point
 %     R.cdf        the reflectivity CDFs as loaded
 %     R.model      HVC: SAI Observation Model section of Inp_Design.txt and its CDF tables
@@ -79,7 +79,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
     RMSE_SM_target = opts.RMSE_target;  RMSE_L_target = opts.RMSE_target_L;
 
     %% Payload and antenna
-    vprintf('\n===== PARAMETERS FROM THE PAYLOAD (RX_POL %s, maximin %.3f) =====\n', payload.RX_POL, payload.maximin);
+    vprintf('\n===== PARAMETERS FROM THE PAYLOAD (RX_POL %s, worst pass %.3f) =====\n', payload.RX_POL, payload.maximin);
     if payload.RX_POL ~= RX_POL
         error('evaluateReceiver:payloadPolMismatch', ...
             'The payload was optimized for RX_POL = "%s" but this run is "%s".', payload.RX_POL, RX_POL);
@@ -190,7 +190,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
     %   coefficients (Kim et al. 2023, Table V, averaged over inclinations), and
     %   the RMSE target.
     coefHV = struct('a', (0.4369+0.4232)/2, 'aT', (2.363e-4+3.204e-4)/2, 'b', (0.0378+0.0370)/2, 'target', 0.06);
-    coefL  = struct('a', (0.6222+0.6385)/2, 'aT', (2.542e-4+2.277e-4)/2, 'b', (0.0844+0.0789+0.0810+0.0803)/4, 'target', 0.10);
+    coefL  = struct('a', (0.6222+0.6385)/2, 'aT', (2.542e-4+2.277e-4)/2, 'b', (0.0844+0.0789)/2, 'target', 0.10);
     switch RX_POL
         case "LHCP"
             portList = "L";                cf = coefL;   polLabel = "LHCP";
@@ -644,8 +644,9 @@ function R = evaluateReceiver(payload, saiAnt, opts)
         end
         % Product availability (single_ant_model.m wrote it to evaluation_summary.m)
         evalSum.order     = Tx;
-        evalSum.HV_lo     = max(0, hvc.vX + hvc.vY - 1);   % H&V product, Frechet lower bound
-        evalSum.HV_hi     = min(hvc.vX, hvc.vY);           % H&V product, upper bound
+        evalSum.HV        = arrayfun(@(k) mean(acc.(Tx(k)).okHV), 1:nTx);   % H&V product: X and Y both pass, per observation
+        evalSum.HV_lo     = max(0, hvc.vX + hvc.vY - 1);   % Frechet lower bound on evalSum.HV
+        evalSum.HV_hi     = min(hvc.vX, hvc.vY);           % Frechet upper bound on evalSum.HV
         evalSum.LHCP      = hvc.lcp;                       % LHCP product on the synthesized port
         evalSum.LHCP_only = arrayfun(@(k) acc.(Tx(k)).fracLonly, 1:nTx);
     end
