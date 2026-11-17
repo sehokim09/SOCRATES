@@ -134,7 +134,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
                                           payload.GNSS_EIRP_MODE, payload.GNSS_EIRP_MARGIN_dB);
     EIRP_dB   = [12, 27, 37, EIRP_GNSS.'];                                     % dBW
     freq      = [137e6, 255e6, 370e6, f_GNSS.'];                               % Hz
-    BW_signal = [25e3, 25e3, 5e6, 2.046e6*[1 1 1 1]];                          % Hz; ORBCOMM 25 kHz channel (A80TD0008 Rev G, Table D.1)
+    BW_signal = [4.8e3, 25e3, 5e6, 2.046e6*[1 1 1 1]];                         % Hz; noise bandwidth = symbol rate: ORBCOMM 4.8 kb/s SDPSK (A80TD0008 Rev G, Sec. 4.4.1.1); UFO 25 kHz, MUOS 5 MHz (Garrison et al. 2024, Table 3)
     lambda    = c./freq;
 
     % System noise temperature from components, the same model as the

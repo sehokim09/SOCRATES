@@ -191,8 +191,8 @@ function [payload, info] = optimizeReceiver(opts)
     end
 
     % Channel counts per SoOp band, enumerated: what one spacecraft radiates
-    %   ORBCOMM 2 subscriber carriers, UFO 4 (conservative), MUOS 1
-    NCH_OPTIONS = {1:2, 1:4, 1};        % GNSS follows the signal set
+    %   ORBCOMM 1 subscriber carrier (A80TD0008 Rev G, Sec. 4.3), UFO 4 (conservative), MUOS 1
+    NCH_OPTIONS = {1, 1:4, 1};        % GNSS follows the signal set
 
     % GNSS signal sets, compared like the channel counts; EIRPs derived by
     % gnssEIRPFromICD unless given as numeric [f_MHz EIRP_dBW] rows
@@ -222,7 +222,7 @@ function [payload, info] = optimizeReceiver(opts)
     freq    = [137e6, 255e6, 370e6, 1575.42e6];
     % MUOS 37 dBW per 5 MHz carrier (Garrison et al. 2024, ASR 73, Table 1)
     EIRP_dB = [12, 27, 37, gnssEIRPFromICD("GPS_L1CA", 5, GNSS_EIRP_MODE, GNSS_EIRP_MARGIN_dB)];   % GPS entry for reference only; the GNSS link uses GNSS_SIG
-    BW      = [25e3, 25e3, 5e6, 2.046e6];   % ORBCOMM 25 kHz channel (A80TD0008 Rev G, Table D.1)
+    BW      = [4.8e3, 25e3, 5e6, 2.046e6];   % noise bandwidth = symbol rate: ORBCOMM 4.8 kb/s SDPSK (A80TD0008 Rev G, Sec. 4.4.1.1); UFO 25 kHz, MUOS 5 MHz (Garrison et al. 2024, Table 3)
     alt_Tx  = [750e3, 35786e3, 35786e3, 20180e3];
     KIND    = ["CROSSDIPOLE","CROSSDIPOLE","CROSSDIPOLE","PATCH"];
     CDFCOL  = [1 2 3 4];
