@@ -92,7 +92,7 @@ classdef DesignParams < handle
         receiver = struct('inputs', struct( ...
                               'RX_POL', "HVC", ... % Receive Polarization (HVC; SOCRATES reads ports X, Y and L)
                               'RMSE_target', 0.06, ... % Soil-moisture RMSE Target [m^3/m^3]
-                              'RMSE_target_L', NaN, ... % RMSE Target of the LHCP Product (NaN = 0.10)
+                              'RMSE_target_L', 0.12, ... % RMSE Target of the LHCP Product [m^3/m^3]
                               'resMax_km', 25, ... % Ground Resolution Requirement [km]
                               'equalRes', true, ... % One Footprint for All Bands
                               'roundImpl', true, ... % Round T_I and Dwell to Implementable Values

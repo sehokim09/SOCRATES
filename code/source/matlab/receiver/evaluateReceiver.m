@@ -14,8 +14,8 @@ function R = evaluateReceiver(payload, saiAnt, opts)
 %     RX_POL         "HVC"   receive polarization: "HV", "LHCP" or "HVC"
 %     RX_PORT        "both"  HV only: "X", "Y" or "both"
 %     T_h            12      inter-frequency observation window [hour]
-%     RMSE_target    NaN     soil-moisture RMSE target; NaN = 0.06 (HV, HVC), 0.10 (LHCP)
-%     RMSE_target_L  NaN     HVC only: target of the LHCP product; NaN = 0.10
+%     RMSE_target    NaN     soil-moisture RMSE target; NaN = 0.06 (HV, HVC), 0.12 (LHCP)
+%     RMSE_target_L  NaN     HVC only: target of the LHCP product; NaN = 0.12
 %     patDir         ant_pat/sai                                 pattern files (cp/ below)
 %     cdfFile        earthdata/reflectivity/reflectivity_CDF_v2.mat  per-port reflectivity CDFs
 %     geomDir        ""      folder searched for a payload.geomFiles entry not found as given
@@ -190,7 +190,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
     %   coefficients (Kim et al. 2023, Table V, averaged over inclinations), and
     %   the RMSE target.
     coefHV = struct('a', (0.4369+0.4232)/2, 'aT', (2.363e-4+3.204e-4)/2, 'b', (0.0378+0.0370)/2, 'target', 0.06);
-    coefL  = struct('a', (0.6222+0.6385)/2, 'aT', (2.542e-4+2.277e-4)/2, 'b', (0.0844+0.0789)/2, 'target', 0.10);
+    coefL  = struct('a', (0.6222+0.6385)/2, 'aT', (2.542e-4+2.277e-4)/2, 'b', (0.0844+0.0789)/2, 'target', 0.12);
     switch RX_POL
         case "LHCP"
             portList = "L";                cf = coefL;   polLabel = "LHCP";
