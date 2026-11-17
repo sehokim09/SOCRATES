@@ -32,6 +32,7 @@ FALSE                     ! Real-time Transmitter Propagation
 12.000000               ! Observation Time Window [hour]
 1                     ! Longitudinal Grid Divisor
 /local/scratch/a/kim3002/ASR1115/ ! Large File Storage Root Directory
+12                        ! Satellite Mass [kg]
 =========================== Data to Report =============================
 FALSE                     ! Individual Receiver Data (per Inp_Report.txt)
 ==================== Coverage Analysis Parameter =======================
@@ -65,7 +66,7 @@ Galileo                   ! Tx 2 Name (From Inp_Inorbit.txt)
 GLONASS                   ! Tx 3 Name (From Inp_Inorbit.txt)
 Beidou                   ! Tx 4 Name (From Inp_Inorbit.txt)
 =================== SAI Observation Model (designReceiver) ===================
-optimizeReceiver 2026-11-16 17:43          ! Source and timestamp
+optimizeReceiver 2026-11-16 22:40          ! Source and timestamp
 0.80000000000000004                        ! gamma
 1                                          ! W_D
 0.051974891880158754                       ! eta_HV (dwell-averaged)
