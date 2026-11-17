@@ -1,4 +1,4 @@
-function createFoM(projName, DesignParamsObj, performTag, useParallel)
+function createFoM(projName, DesignParamsObj, performTag, useParallel, product)
 % function createFoM
 %
 %   Read performance and cost NetCDF files and save FoM_<projName>_<performTag>.mat
@@ -7,6 +7,11 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
 %   performTag (optional) selects <constellation>_perform_<tag>.nc; by default
 %   it is the run tag of the SAI Observation Model section of the project's
 %   Inp_Design.txt (e.g. "SAI2610").
+%
+%   product (optional) is the observation product the FoMs score: "LHCP"
+%   (obsFreqL, nSpPassLcp_*) or "HV" (obsFreq, nSpValid_*). By default it is
+%   DesignParamsObj.receiver.fomProduct. The product is stored in the FoM file,
+%   and a restart or a parallel checkpoint of the other product is refused.
 %
 %   useParallel (optional, default false) computes the cases in a parfor loop:
 %   each case is saved to its own file in sim/<projName>/out/FoM_<projName>_<performTag>_cases/
@@ -21,7 +26,8 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
 %   with the elapsed time and an estimate of the time left, then the merge
 %   and post-processing steps.
 %
-%   Every coverage and revisit metric comes from obsFreq (bit k-1 = TxComb k,
+%   Every coverage and revisit metric comes from obsFreq or obsFreqL of the
+%   chosen product (bit k-1 = TxComb k,
 %   one 12-hour window per slice of the third dimension). MRT1T/MRT2T (per
 %   frequency combination) and SRT1T/SRT2T (per TxComb) are the per-cell Poisson
 %   rate censored at T_sim: m_i = T_sim / max(N_i, 1) averaged over land cells,
@@ -53,6 +59,20 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
     end
     if nargin < 4 || isempty(useParallel)
         useParallel = false;
+    end
+    if nargin < 5 || strlength(string(product)) == 0
+        if isfield(DesignParamsObj.receiver, 'fomProduct')
+            product = DesignParamsObj.receiver.fomProduct;
+        else    % projects saved before the option take the current default
+            product = DesignParams().receiver.fomProduct;
+        end
+    end
+    product = upper(string(product));
+    switch product
+        case "HV",   obsVar = "obsFreq";
+        case "LHCP", obsVar = "obsFreqL";
+        otherwise
+            error('createFoM:product', 'product must be "HV" or "LHCP", not "%s".', product);
     end
 
     %% Directories
@@ -138,7 +158,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
     landmask = repmat(logical(landmask(:,1:end-1)'), 1, 1, nFreqComb);
 
     %% Dimension of grid
-    info = ncinfo(fullfile(dir_spdata(1,1,1,1), filename_perform(1,1,1,1)), 'obsFreq');
+    info = ncinfo(fullfile(dir_spdata(1,1,1,1), filename_perform(1,1,1,1)), obsVar);
     nCol = info.Size(1);
     nRow = info.Size(2);
     nWindow = info.Size(3);
@@ -152,6 +172,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
                'nFreqComb', nFreqComb, 'nTxComb', nTxComb, ...
                'windowHours1T', windowHours1T, 'windowHours2T', windowHours2T);
     P.TxCombName = TxCombName;
+    P.product = product;  P.obsVar = obsVar;
     costFile = dir_spdata + filesep + filename_cost;
     performFile = dir_spdata + filesep + filename_perform;
     nCaseTotal = nNrx * nAlt * nInc * nNplane;
@@ -159,7 +180,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
     t0 = tic;
     runMode = "serial";
     if useParallel, runMode = "parallel"; end
-    fprintf('\n===== CREATE FoM: %s (run tag %s) =====\n', projName, performTag);
+    fprintf('\n===== CREATE FoM: %s (run tag %s, %s product) =====\n', projName, performTag, product);
     fprintf('  %d constellation(s), %d TxComb, %d frequency combination(s), %d windows of %g h, %d x %d grid\n', ...
         nCaseTotal, nTxComb, nFreqComb, nWindow, windowHours1T, nCol, nRow);
     fprintf('  %s run, output %s\n', runMode, filepath_out);
@@ -211,8 +232,16 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
             'SRT1T', 'SRT2T', ...
             'MRT1T', 'MRT2T', 'Nmulti1T', 'Nmulti2T', ...
             'nSpValid', 'nSpInvalid', 'nSpRatio', ...
-            'caseDone', 'loopComplete', 'postProcessComplete', ...
+            'caseDone', 'loopComplete', 'postProcessComplete', 'product', ...
             '-v7.3');
+    end
+    % A restart continues the product the file was started with (files from
+    % before the option hold H&V results)
+    fileProduct = "HV";
+    if ismember('product', who('-file', filepath_out)), fileProduct = string(load(filepath_out, 'product').product); end
+    if fileProduct ~= product
+        error('createFoM:productMismatch', '%s holds %s results; remove it to compute the %s product.', ...
+            filepath_out, fileProduct, product);
     end
 
     %% Open MAT file
@@ -232,6 +261,17 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel)
         if ~exist(caseDir, 'dir')
             mkdir(caseDir);
         end
+        % The checkpoint holds one product; folders from before the option hold H&V
+        markFile = fullfile(caseDir, 'product.txt');
+        if isfile(markFile), caseProduct = strtrim(string(fileread(markFile)));
+        elseif ~isempty(dir(fullfile(caseDir, '*.mat'))), caseProduct = "HV";
+        else, caseProduct = product;
+        end
+        if caseProduct ~= product
+            error('createFoM:productMismatch', '%s holds %s cases; remove it to compute the %s product.', ...
+                caseDir, caseProduct, product);
+        end
+        writelines(product, markFile);
         caseFile = string(caseDir) + filesep + consName + ".mat";
         todo = find(~arrayfun(@isfile, caseFile));
         say(t0, 'parallel run: %d of %d cases to compute; finished cases are kept in %s', ...
@@ -510,8 +550,8 @@ function R = fomCase(costFile, performFile, P)
     R.launchOption = cost(4);
     R.nLaunch = cost(5);
 
-    %% Observable frequencies
-    obsFreq1T = ncread(performFile, "obsFreq");
+    %% Observable frequencies of the scored product (obsFreq: H&V, obsFreqL: LHCP)
+    obsFreq1T = ncread(performFile, P.obsVar);
 
     obsFreq2T = zeros(nCol, nRow, nWindow/2, 'like', obsFreq1T);
     for iWindow = 1:nWindow/2
@@ -591,8 +631,15 @@ function R = fomCase(costFile, performFile, P)
         R.SRT1T(iTxComb) = revisitTimeWindows(bitand(obsFreq1T, txBit) ~= 0, P.windowHours1T, landmaskVec);
         R.SRT2T(iTxComb) = revisitTimeWindows(bitand(obsFreq2T, txBit) ~= 0, P.windowHours2T, landmaskVec);
 
-        nValid = ncread(performFile, strcat("nSpValid_", P.TxCombName{iTxComb}));
-        nInvalid = ncread(performFile, strcat("nSpInvalid_", P.TxCombName{iTxComb}));
+        % Scored points pass or fail the product; nSpValid + nSpInvalid counts them all
+        nAll = double(ncread(performFile, strcat("nSpValid_", P.TxCombName{iTxComb}))) + ...
+               double(ncread(performFile, strcat("nSpInvalid_", P.TxCombName{iTxComb})));
+        if P.product == "LHCP"
+            nValid = double(ncread(performFile, strcat("nSpPassLcp_", P.TxCombName{iTxComb})));
+        else
+            nValid = double(ncread(performFile, strcat("nSpValid_", P.TxCombName{iTxComb})));
+        end
+        nInvalid = nAll - nValid;
 
         R.nSpValid(iTxComb) = nValid;
         R.nSpInvalid(iTxComb) = nInvalid;

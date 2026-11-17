@@ -107,6 +107,7 @@ classdef DesignParams < handle
                               'geomFiles', "", ... % Geometry Sample Files ("" = Rx1 of each Walker inclination)
                               'geomDir', ""), ... % Geometry Sample Folder ("" = Large File Storage Root Directory)
                           'runTag', "", ... % Run Tag of the Performance Files
+                          'fomProduct', "LHCP", ... % Product Scored by createFoM (LHCP, HV)
                           'payload', [], ... % Solved Payload (optimizeReceiver)
                           'antenna', [], ... % Antenna Summary (generateReceiverPatterns)
                           'model', []); % SAI Observation Model (evaluateReceiver)
