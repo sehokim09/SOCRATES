@@ -112,6 +112,9 @@ function DesignParamsObj = readInpDesign(projPath)
     % Large File Storage Root Directory
     line = fgetl(fileID);
     DesignParamsObj.largeFilePath = sscanf(line, "%s %*[\n]");
+    % Satellite Mass [kg]
+    line = fgetl(fileID);
+    DesignParamsObj.massSat = sscanf(line, "%f %*[\n]");
     fgetl(fileID);
     
     % Individual Receiver Data (per Inp_Report.txt)

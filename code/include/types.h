@@ -100,6 +100,7 @@ struct DesignType{
 	// Other Variables
 	uint8_t flagTxPropagation; // if TRUE, propagate Tx, otherwise import existing data
 	long timeWindow;
+	double massSat; // satellite mass [kg] (Inp_Design.txt), for the launch count and the satellite cost
 	// Internal Variables
 	long nRxPrev;
 	long nSCPrev;

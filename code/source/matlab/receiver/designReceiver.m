@@ -136,7 +136,7 @@ function [DesignParamsObj, res] = designReceiver(projName, DesignParamsObj, opts
     fprintf('  %-8s %5s %8s %8s %6s %6s\n', 'Tx', 'Nc', 'T_I[ms]', 'N_incoh', 'H&V', 'LHCP');
     for iTx = 1:R.model.nTx
         t = R.model.tx(iTx);
-        fprintf('  %-8s %5d %8.1f %8d %6.2f %6.2f\n', t.name, t.Nc, t.TI_s*1e3, t.Nincoh, ...
+        fprintf('  %-8s %5.4g %8.1f %8d %6.2f %6.2f\n', t.name, t.Nc, t.TI_s*1e3, t.Nincoh, ...
             R.evalSum.HV(iTx), R.evalSum.LHCP(iTx));
     end
 end

@@ -20,6 +20,7 @@ FALSE                     ! Real-time Transmitter Propagation
 12                        ! Observation Time Window [hour]
 4                         ! Longitudinal Grid Divisor
 /local/scratch/a/kim3002/ ! Large File Storage Root Directory
+12                        ! Satellite Mass [kg]
 =========================== Data to Report =============================
 FALSE                     ! Individual Receiver Data (per Inp_Report.txt)
 ==================== Coverage Analysis Parameter =======================

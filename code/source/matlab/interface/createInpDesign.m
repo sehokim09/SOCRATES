@@ -104,8 +104,9 @@ function createInpDesign(projPath, DesignParamsObj)
     texts(idxLastLine + 3) = sprintf("%d                     ! Longitudinal Grid Divisor\n", DesignParamsObj.gridDivisor);
     % one trailing slash, however many the stored path has (readInpDesign keeps it)
     texts(idxLastLine + 4) = sprintf("%s/ ! Large File Storage Root Directory\n", regexprep(char(DesignParamsObj.largeFilePath), '/+$', ''));
-    lines(idxLastLine+1 : idxLastLine+4) = lines(idxLastLine) + (2:5);
-    flagAdd(idxLastLine+1 : idxLastLine+4) = 0;
+    texts(idxLastLine + 5) = sprintf("%g                        ! Satellite Mass [kg]\n", DesignParamsObj.massSat);
+    lines(idxLastLine+1 : idxLastLine+5) = lines(idxLastLine) + (2:6);
+    flagAdd(idxLastLine+1 : idxLastLine+5) = 0;
 
     idxLastLine = length(lines);
     

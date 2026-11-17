@@ -736,6 +736,11 @@ void loadDesign(void)
     fscanf(infile,"%d %[^\n] %[\n]",&Design->gridDivisor,junk,&newline);
     // .. Large file storage root directory .. //
 	fscanf(infile,"%s %[^\n] %[\n]",Design->largeFileRoot,junk,&newline);
+    // .. Satellite mass [kg] .. //
+    if(fscanf(infile,"%lf %[^\n] %[\n]",&Design->massSat,junk,&newline) < 1 || Design->massSat <= 0.0){
+        printf("Inp_Design.txt has no satellite mass after the storage root directory; regenerate it (createInpDesign).  Bailing out!\n");
+        exit(1);
+    }
     fscanf(infile,"%[^\n] %[\n]",junk,&newline);
 
     // .. Individual Receiver Data .. //
@@ -1315,7 +1320,7 @@ static double electronCapacity(double alt_km, double inc_deg)
 
 void calcLaunchCost(long nRx, double alt, double inc, long nPlane, double *costDedicated, double *costRideshare, int *launchOption, int *nLaunch)
 {
-    double massSat = 25; // satellite unit mass (kg)
+    double massSat = Design->massSat; // satellite mass [kg] (Inp_Design.txt)
     double massPayloadMax = electronCapacity(alt, inc);   // Electron UG v8.0 curves
     double c_rocket = 8.33E6; // rocket build cost: Electron ASP $8.4M (Q3 2024) minus propellant cost at max payload, 400 km, 40 deg
 //    double massPayloadMax = 345.6 - 0.067*alt - 1.175*inc;
@@ -1366,7 +1371,7 @@ void calcLaunchCost(long nRx, double alt, double inc, long nPlane, double *costD
 void calcCost(void)
 {  
     // .. Constellation cost .. //
-    double massSat = 25; // satellite unit mass (kg)
+    double massSat = Design->massSat; // satellite mass [kg] (Inp_Design.txt)
     double c_sat = (1064 + 35.5*pow(massSat, 1.261))*1.0E3; // cost of a single satellite (SMAD Table 11-11 SSCM)
     double b = 0.9; // parameter for learning curve
     double L = pow((double)Design->nRx, 1+log2(b)); // Learning curve factor

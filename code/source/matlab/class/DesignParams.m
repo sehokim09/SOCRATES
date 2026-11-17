@@ -43,6 +43,7 @@ classdef DesignParams < handle
         window % Observation Time Window [hour]
         gridDivisor % Longitudinal Grid Divisor
         largeFilePath % Large File Storage Root Directory
+        massSat = 12 % Satellite Mass [kg] (launch count and satellite cost)
         flagReport % Individual Receiver Data (per Inp_Report.txt)
         nTxComb % Number of Transmitter Combinations
         nFreqComb % Number of Frequency Combinations
