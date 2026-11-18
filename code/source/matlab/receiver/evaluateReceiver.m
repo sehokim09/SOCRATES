@@ -13,6 +13,15 @@ function R = evaluateReceiver(payload, saiAnt, opts)
 %   opts     optional struct; missing fields take these defaults:
 %     RX_POL         "HVC"   receive polarization: "HV", "LHCP" or "HVC"
 %     RX_PORT        "both"  HV only: "X", "Y" or "both"
+%     HV_BASIS       "fixedXY"  linear ports scored against the V and H CDFs:
+%                    "fixedXY" the body-fixed ports X and Y; "incidencePlane"
+%                    the ports synthesized per observation from X and Y in
+%                    the plane of incidence (V) and normal to it (H), the
+%                    basis the reflectivity CDFs were built in
+%     HV_FLOOR       true    incidencePlane: re-apply the pattern floor to the
+%                            synthesized port (LookupAntGainSAI hvOpts.floor)
+%     HV_IMB         [0 0]   incidencePlane: Y-channel amplitude [dB] and phase
+%                            [deg] error relative to X
 %     T_h            12      inter-frequency observation window [hour]
 %     RMSE_target    NaN     soil-moisture RMSE target; NaN = 0.06 (HV, HVC), 0.12 (LHCP)
 %     RMSE_target_L  NaN     HVC only: target of the LHCP product; NaN = 0.12
@@ -68,7 +77,13 @@ function R = evaluateReceiver(payload, saiAnt, opts)
         'RMSE_target', NaN, 'RMSE_target_L', NaN, ...
         'patDir', fullfile('ant_pat', 'sai'), ...
         'cdfFile', fullfile('earthdata', 'reflectivity', 'reflectivity_CDF_v2.mat'), ...
-        'geomDir', "", 'source', "", 'verbose', false, 'progressFcn', []));
+        'geomDir', "", 'source', "", 'verbose', false, 'progressFcn', [], ...
+        'HV_BASIS', "fixedXY", 'HV_FLOOR', true, 'HV_IMB', [0 0]));
+    HV_BASIS = string(opts.HV_BASIS);
+    if ~any(HV_BASIS == ["fixedXY" "incidencePlane"])
+        error('evaluateReceiver:hvBasis', 'HV_BASIS must be "fixedXY" or "incidencePlane".');
+    end
+    hvOpts = struct('floor', logical(opts.HV_FLOOR), 'imb', opts.HV_IMB);
     if opts.verbose
         vprintf = @(varargin) fprintf(varargin{:});
     else
@@ -338,7 +353,11 @@ function R = evaluateReceiver(payload, saiAnt, opts)
             cdfField = 'L';   antPort = 'lhcp';    polMismatch_dB = [0 0];
         else
             cdfField = char(thisPort);             polMismatch_dB = [DIR_LIN_LOSS_dB 0];
-            if thisPort == "Y", antPort = 'port2'; else, antPort = 'port1'; end
+            if HV_BASIS == "incidencePlane"          % synthesized in the plane of incidence
+                if thisPort == "Y", antPort = 'H'; else, antPort = 'V'; end
+            elseif thisPort == "Y", antPort = 'port2';
+            else,                   antPort = 'port1';
+            end
         end
         if thisPort == "Lcp"
             vprintf('\n===== RECEIVE PORT L, scored for the LHCP product (target %.3f) =====\n', RMSE_L_target);
@@ -358,7 +377,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
         margin_dB = struct(); beta_over_alpha = struct(); idxG = struct();
 
         [G_D_dB, G_R_dB] = LookupAntGainSAI(Tx, data, G_ant_dB, antPort, ...
-                                            polMismatch_dB, antDir, cfgMap);
+                                            polMismatch_dB, antDir, cfgMap, hvOpts);
 
         X = Scdf.X.(cdfField);
         F = Scdf.F.(cdfField);
@@ -681,7 +700,8 @@ function R = evaluateReceiver(payload, saiAnt, opts)
         'T_dwell', T_dwell, 'N_coh', N_coh, 'ebNc_actual', ebNc_actual, 'ebNc_ceil', ebNc_ceil);
     R.budget = struct('RX_POL', RX_POL, 'T_h', T, 'RMSE_target', RMSE_SM_target, 'RMSE_target_L', RMSE_L_target, ...
         'eta_max_avg', eta_max_avg, 'eta_bar_avg', eta_bar_avg, 'eta_L_avg', eta_L_avg, ...
-        'eta_bar_single', eta_bar_single, 'eta_bar_single_L', eta_bar_single_L);
+        'eta_bar_single', eta_bar_single, 'eta_bar_single_L', eta_bar_single_L, ...
+        'HV_BASIS', HV_BASIS, 'HV_FLOOR', hvOpts.floor, 'HV_IMB', hvOpts.imb);
     R.gamma = gamma;  R.W_D = W_D;
     R.portList = portList;  R.scoreList = scoreList;
     R.port = Rp;  R.acc = acc;  R.hvc = hvc;  R.combo = combo;  R.evalSum = evalSum;

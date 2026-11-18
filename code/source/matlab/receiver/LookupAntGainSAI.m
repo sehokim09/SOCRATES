@@ -1,4 +1,4 @@
-function [G_D_dB, G_R_dB] = LookupAntGainSAI(Tx, data, G_ant_dB, port, polMismatch_dB, antDir, cfgMap)
+function [G_D_dB, G_R_dB] = LookupAntGainSAI(Tx, data, G_ant_dB, port, polMismatch_dB, antDir, cfgMap, hvOpts)
 %LOOKUPANTGAINSAI Scalar per-port direct/reflected gains for the SAI model.
 %
 %   [G_D_dB, G_R_dB] = LookupAntGainSAI(Tx, data, G_ant_dB)
@@ -13,7 +13,15 @@ function [G_D_dB, G_R_dB] = LookupAntGainSAI(Tx, data, G_ant_dB, port, polMismat
 %       [G_D_dB, G_R_dB] = LookupAntGainSAI(Tx, data, G_ant_dB, 'port2');
 %
 % Inputs
-%   port            'port1' (X, default) or 'port2' (Y)
+%   port            'port1' (X, default) or 'port2' (Y); 'lhcp' or 'rhcp'
+%                   (cp/ files); or 'V' or 'H', the linear ports synthesized
+%                   per observation in the plane of incidence
+%                   (localIncidencePlaneGain)
+%   hvOpts          V and H ports only; struct, missing fields take
+%                     floor   true   re-apply the pattern model's diffraction
+%                                    floor to the synthesized port field
+%                     imb     [0 0]  Y-channel amplitude [dB] and phase [deg]
+%                                    error relative to X (calibration residual)
 %   polMismatch_dB  [direct reflected] losses in dB, default [3.01 0].
 %                   Scalar input is expanded to both paths.
 %
@@ -72,9 +80,17 @@ function [G_D_dB, G_R_dB] = LookupAntGainSAI(Tx, data, G_ant_dB, port, polMismat
     end
     if nargin < 6, antDir = ''; end
     if nargin < 7, cfgMap = []; end
-    if ~ismember(lower(port), {'port1','port2','lhcp','rhcp'})
+    if nargin < 8 || isempty(hvOpts), hvOpts = struct(); end
+    if ~ismember(lower(port), {'port1','port2','lhcp','rhcp','v','h'})
         error('LookupAntGainSAI:badPort', ...
-              'port must be port1, port2, lhcp or rhcp.');
+              'port must be port1, port2, lhcp, rhcp, V or H.');
+    end
+
+    % ---- linear ports synthesized in the plane of incidence -----------------
+    if any(strcmpi(port, {'v','h'}))
+        [G_D_dB, G_R_dB] = localIncidencePlaneGain(Tx, data, G_ant_dB, upper(port), ...
+                                                   polMismatch_dB, antDir, cfgMap, hvOpts);
+        return
     end
 
     % ---- circular ports come from the cp/ files ----------------------------
@@ -223,4 +239,86 @@ function v = localPick(P, M, th, ph)
     iPhi   = max(1, min(round(ph*R2D / P.resDeg) + 1, P.nPhi));
     v = M(sub2ind([P.nPhi, P.nTheta], iPhi, iTheta));
     v(bad) = NaN;
+end
+
+% ------------------------------------------------------------------------
+function [G_D_dB, G_R_dB] = localIncidencePlaneGain(Tx, data, G_ant_dB, port, pm, antDir, cfgMap, o)
+%LOCALINCIDENCEPLANEGAIN Gains of linear ports synthesized per observation in
+%   the plane of incidence.
+%
+%   The receiver samples ports X and Y coherently, so a weighted sum
+%       p_psi = cos(psi)*X + sin(psi)*w*Y
+%   is a linear port whose response is the same weighted sum of the two port
+%   fields (signed Ludwig-3 fields of the gn* files). V takes psi = the
+%   azimuth of the specular point in the antenna frame (lookAngAzR), which
+%   puts the port in the plane of incidence, the basis in which the
+%   reflectivity CDFs were built (SOCRATES-Retrieval forward model: receive
+%   x axis in the plane of incidence, so port X is V and port Y is H). H
+%   takes psi + 90 deg. One port receives both arms, so the direct arm uses
+%   the same weights.
+%
+%   The pattern model applied its diffraction floor to each port field
+%   (SAIAntennaPattern, localVectorFloor: |E|^2 -> |E|^2 + f^2). A sum of
+%   floored fields could cancel that floor, so each port's floor is removed
+%   first (f = the minimum field magnitude of the port, reached at its
+%   on-grid axial nulls) and, with o.floor, added back to the synthesized
+%   port. At psi = 0 this returns port X exactly.
+%
+%   With real weights the fields are real, so the RHCP direct arm still
+%   loses exactly half its power (pm(1) = 3.01 dB). With a channel error w
+%   the fields are complex; the total port power is then the mean over the
+%   two circular senses, and pm(1) is applied unchanged.
+    if ~isfield(o, 'floor') || isempty(o.floor), o.floor = true; end
+    if ~isfield(o, 'imb')   || isempty(o.imb),   o.imb = [0 0];  end
+    if isempty(cfgMap)
+        error('LookupAntGainSAI:noCfgMap', 'Ports V and H need cfgMap (the pattern tag of each transmitter).');
+    end
+    if isempty(antDir), antDir = fullfile('antPatternFiles','nominal'); end
+    w = 10^(o.imb(1)/20) * exp(1j*o.imb(2)*pi/180);
+
+    [g_D, g_R] = LookupAntGainDualPol(Tx, data, G_ant_dB, antDir, cfgMap);
+    floors = struct();
+    G_D_dB = struct();  G_R_dB = struct();
+    for iTx = 1:numel(Tx)
+        nm  = Tx(iTx);
+        tag = cfgMap.(char(nm)).tag;
+        key = matlab.lang.makeValidName(tag);
+        if ~isfield(floors, key), floors.(key) = localPortFloor(antDir, tag); end
+        f = floors.(key);
+        psi = double(data.(nm).lookAngAzR(:));
+        if port == "H", psi = psi + pi/2; end
+        G_R_dB.(nm) = 10*log10(localSynth(g_R.(nm), psi, f, w, o.floor)) + G_ant_dB(iTx) - pm(2);
+        if all(isnan(g_D.(nm).XX))
+            G_D_dB.(nm) = nan(numel(psi), 1);
+        else
+            G_D_dB.(nm) = 10*log10(localSynth(g_D.(nm), psi, f, w, o.floor)) + G_ant_dB(iTx) - pm(1);
+        end
+    end
+end
+
+function P = localSynth(g, psi, f, w, refloor)
+%LOCALSYNTH Power of the port cos(psi)*X + sin(psi)*w*Y from the floored
+%   port fields g (XX, XY, YX, YY) and the port floors f = [fX fY].
+    [xx, xy] = localUnfloor(g.XX, g.XY, f(1));
+    [yx, yy] = localUnfloor(g.YX, g.YY, f(2));
+    c = cos(psi);  s = sin(psi);
+    p1 = c.*xx + s.*w.*yx;
+    p2 = c.*xy + s.*w.*yy;
+    P = abs(p1).^2 + abs(p2).^2;
+    if refloor, P = P + mean(f)^2; end
+end
+
+function [a, b] = localUnfloor(a, b, f)
+%LOCALUNFLOOR Invert localVectorFloor: |E|^2 -> |E|^2 - f^2, direction kept.
+    E2 = a.^2 + b.^2;
+    s = sqrt(max(E2 - f^2, 0) ./ max(E2, realmin));
+    a = a.*s;  b = b.*s;
+end
+
+function f = localPortFloor(antDir, tag)
+%LOCALPORTFLOOR Field floor of ports X and Y: the minimum field magnitude
+%   over the pattern grid, reached at each port's axial nulls.
+    rd = @(c) readmatrix(fullfile(antDir, sprintf('%s_gn%s.csv', tag, c)));
+    XX = rd('XX');  XY = rd('XY');  YX = rd('YX');  YY = rd('YY');
+    f = [min(sqrt(XX.^2 + XY.^2), [], 'all'), min(sqrt(YX.^2 + YY.^2), [], 'all')];
 end
