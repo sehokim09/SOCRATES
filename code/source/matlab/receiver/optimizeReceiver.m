@@ -18,6 +18,8 @@ function [payload, info] = optimizeReceiver(opts)
 %                          one receiver per inclination, pooled with equal weight
 %     RX_POL               "HVC"   receive polarization: "HV", "LHCP" or "HVC"
 %     RMSE_TARGET          NaN     soil-moisture RMSE target; NaN = 0.06 (HV, HVC), 0.10 (LHCP)
+%     RMSE_TARGET_L        0.12    RMSE target of the LHCP product (HVC); sets the
+%                                  eta of the LHCP dwell trade (info.trade.passTL)
 %     T_WINDOW_H           12      inter-frequency observation window [hour]
 %     RES_MAX_km           25      ground resolution requirement [km]
 %     EQUAL_RES            true    tie the dwells so all four bands share one footprint
@@ -76,7 +78,7 @@ function [payload, info] = optimizeReceiver(opts)
 %
 %   Version 1.0
 
-    def = struct('RX_POL', "HVC", 'RMSE_TARGET', NaN, 'T_WINDOW_H', 12, ...
+    def = struct('RX_POL', "HVC", 'RMSE_TARGET', NaN, 'RMSE_TARGET_L', 0.12, 'T_WINDOW_H', 12, ...
         'RES_MAX_km', 25, 'EQUAL_RES', true, 'ROUND_IMPL', true, ...
         'T_I_STEP', 0.1e-3, 'DWELL_EPOCH', 0, 'THETA_MAX_DEG', 90, 'FIX', [NaN NaN NaN NaN 1.0 0.8 0.5 500], ...
         'NADIR_FACE', "large", 'GP_OPTIONS', [], 'GNSS_SIG_OPTIONS', {{"GPS_L1CA"}}, ...
@@ -247,6 +249,10 @@ function [payload, info] = optimizeReceiver(opts)
               RMSE_TARGET, b_SM + a_SM_T*T_WINDOW_H);
     end
     eta_avg = sqrt((RMSE_TARGET-b_SM)^2 - (a_SM_T*T_WINDOW_H)^2)/a_SM_eta;
+    % LHCP product of the HVC design (L port, LHCP coefficients, eta fit floor
+    % as evaluateReceiver): its eta sets only the LHCP dwell trade
+    a_L = (0.6222 + 0.6385)/2;  aT_L = (2.542e-4 + 2.277e-4)/2;  b_L = (0.0844 + 0.0789)/2;
+    eta_L = sqrt(max((opts.RMSE_TARGET_L - b_L)^2 - (aT_L*T_WINDOW_H)^2, 0))/a_L;
 
     %% Precompute
     %   Everything that does not depend on the design vector is computed once;
@@ -652,8 +658,12 @@ function [payload, info] = optimizeReceiver(opts)
     progress(0.75, 'dwell trade');
     nSw = 36;  Tsw = linspace(0.2, 1.25*capVU, nSw);
     passT = nan(nSw, nBand);
+    passTL = nan(nSw, nBand);                        % L port at the LHCP eta (HVC)
     CONSTsw = CONSTfix;  CONSTsw.DWELL_EPOCH = 0;
     objSw = @(x, nch) localPassFraction(x, nch, PRE, BAND, isGNSS, freq, lambda, EIRP_dB, BW, alt_Tx, KIND, CONSTsw);
+    CONSTswL = CONSTsw;  CONSTswL.eta_avg = eta_L;
+    objSwL = @(x, nch) localPassFraction(x, nch, PRE, BAND, isGNSS, freq, lambda, EIRP_dB, BW, alt_Tx, KIND, CONSTswL);
+    hasL = any(PORTS == "L");
     offL = bestX(iL) - bestX(iVU);
     for is = 1:nSw
         xt = bestX;  xt(iVU) = Tsw(is);  xt(iL) = Tsw(is) + offL;
@@ -661,6 +671,16 @@ function [payload, info] = optimizeReceiver(opts)
         for ib = 1:nBand
             passT(is, ib) = dT.(BAND(ib)).joint;
         end
+        if hasL
+            [~, dTL] = objSwL(xt, bestN);
+            for ib = 1:nBand, passTL(is, ib) = dTL.(BAND(ib)).L; end
+        end
+    end
+    passBestL = nan(1, nBand);                       % solved design, LHCP eta, flown T_I
+    if hasL
+        CONSTfixL = CONSTfix;  CONSTfixL.eta_avg = eta_L;
+        [~, dBL] = localPassFraction(bestX, bestN, PRE, BAND, isGNSS, freq, lambda, EIRP_dB, BW, alt_Tx, KIND, CONSTfixL);
+        for ib = 1:nBand, passBestL(ib) = dBL.(BAND(ib)).L; end
     end
     fpT = (FZ_VU + v_gnd*Tsw)/1e3;                     % design footprint, km
 
@@ -789,7 +809,8 @@ function [payload, info] = optimizeReceiver(opts)
     % with the footprint cap and the solved design
     info.trade = struct('Tsw', Tsw, 'passT', passT, 'fpT', fpT, 'capVU', capVU, 'BAND', BAND, ...
         'fpCap', RES_MAX_km, 'RES7_km', RES7_km, ...
-        'passBest', iBest.passBand, 'fpBest', (FZ_VU + v_gnd*bestX(iVU))/1e3);
+        'passBest', iBest.passBand, 'fpBest', (FZ_VU + v_gnd*bestX(iVU))/1e3, ...
+        'passTL', passTL, 'passBestL', passBestL, 'etaL', eta_L);
 
     vprintf('optimizeReceiver: pass [%s]; dwell [%s] s; N_ch [%s]\n', ...
         strtrim(sprintf('%.3f ', iBest.passBand)), ...
