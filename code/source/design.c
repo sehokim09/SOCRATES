@@ -1330,7 +1330,6 @@ void calcLaunchCost(long nRx, double alt, double inc, long nPlane, double *costD
     double aH = World[EARTH].rad + alt*1.0E3;
     double aT = (aL + aH) / 2;
     double I_sp = 300.0; // specific impulse of the propellant
-    double alpha = 0.1;
 
     // delta V of launch vehicle
     double dV0 = 10000.0; // delV required to go from altitude 0km to 400km and 28.7 inc (m/s)
@@ -1345,21 +1344,17 @@ void calcLaunchCost(long nRx, double alt, double inc, long nPlane, double *costD
     double n_launch = ceil(m_pload/massPayloadMax) * nPlane;
     double m_pload_per_launch = (double) nRx / n_launch * massSat;
     double m_propD = (m_dry + m_pload_per_launch) * ( exp(dV/g0/I_sp) - 1 ); // dedicated
-    double m_propR = m_pload_per_launch*( exp(dV/g0/I_sp) - 1 ); // rideshare
+    double m_propR = m_pload_per_launch*( exp(dV/g0/I_sp) - 1 ); // propellant of the payload alone (reported only)
     
     // Translate amount of propellant into dollars
     double c_propellant = 1; // specific cost of propellant (dollar/kg)
     double c_dedicated = c_rocket + c_propellant * m_propD; // 4.26M$ (this is old version) corresponds to the cost of building the rocket
     double c_rideshare = c_propellant * m_propR;
 
-    if(m_pload_per_launch < alpha * massPayloadMax){
-        // rideshare added
-        *launchOption = RIDESHARE;
-    }
-    else{
-        // dedicated
-        *launchOption = DEDICATED;
-    }
+    // Every launch is dedicated: a rideshare goes to the primary payload's orbit,
+    // so it cannot place the planes of a Walker constellation, and the
+    // propellant-only rideshare cost is not a launch price
+    *launchOption = DEDICATED;
     
     *costDedicated = n_launch * c_dedicated;
     *costRideshare = n_launch * c_rideshare;
