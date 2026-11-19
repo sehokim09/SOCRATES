@@ -66,7 +66,7 @@ Galileo                   ! Tx 2 Name (From Inp_Inorbit.txt)
 GLONASS                   ! Tx 3 Name (From Inp_Inorbit.txt)
 Beidou                   ! Tx 4 Name (From Inp_Inorbit.txt)
 =================== SAI Observation Model (designReceiver) ===================
-optimizeReceiver 2026-11-16 22:40          ! Source and timestamp
+optimizeReceiver 2026-11-18 15:07          ! Source and timestamp
 0.80000000000000004                        ! gamma
 1                                          ! W_D
 0.051974891880158754                       ! eta_HV (dwell-averaged)
@@ -87,3 +87,4 @@ GPS      GNSS  4 PATCH_1575       6.9067999999999996 11448409497451.826 2046 0.0
 Galileo  GNSS  4 PATCH_1575       6.9067999999999996 19282024691324.395 2046 0.001 3400 0
 GLONASS  GNSS  4 PATCH_1575       6.9067999999999996 5897953237859.3359 2046 0.001 3400 0
 Beidou   GNSS  4 PATCH_1575       6.9067999999999996 11356468749896.357 2046 0.001 3400 0
+incidencePlane 0.5 5                       ! H&V port basis; Y-channel amplitude [dB] and phase [deg] error
