@@ -324,7 +324,11 @@ int main(int argc, char **argv)
         nc_close(nc);
     }
 
-    printf("SAI model %s, %d file(s)\n", M.source, nFiles);
+    if (M.hvBasis == SAI_HV_INCPLANE)
+        printf("SAI model %s, H&V basis incidencePlane (Y error %.2f dB, %.2f deg), %d file(s)\n",
+               M.source, M.hvImb_dB, M.hvImb_deg, nFiles);
+    else
+        printf("SAI model %s, H&V basis fixedXY, %d file(s)\n", M.source, nFiles);
     printf("%-8s %10s %8s %8s %8s %8s %8s %6s\n", "Tx", "points", "pass X", "pass Y", "min", "H&V", "LHCP", "k>-1");
     for (t = 0; t < M.nTx; t++) {
         double n = (double) cnt[t][0], vX = cnt[t][1]/n, vY = cnt[t][2]/n;

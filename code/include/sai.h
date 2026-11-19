@@ -18,6 +18,12 @@
 /*  DesignParams.receiver.model (the Receiver Design step). The            */
 /*  module has no SOCRATES or 42 dependency, so the standalone checker     */
 /*  sai_check links it on its own.                                         */
+/*                                                                         */
+/*  An optional line after the transmitter table sets the H&V port basis:  */
+/*  "fixedXY" (default) scores the body-fixed ports X and Y; "incidence-    */
+/*  Plane [amp_dB phase_deg]" scores ports synthesized per observation in  */
+/*  the plane of incidence (V) and normal to it (H), with an optional      */
+/*  Y-channel amplitude and phase error (LookupAntGainSAI ports V and H).  */
 /***************************************************************************/
 
 #include <stddef.h>
@@ -31,6 +37,9 @@
 
 /* Port scorings, also the bit positions of the saiEvaluate mask */
 enum { SAI_SCORE_X = 0, SAI_SCORE_Y = 1, SAI_SCORE_LCP = 2 };
+
+/* H&V port basis (optional last line of the SAI section; default fixedXY) */
+enum { SAI_HV_FIXEDXY = 0, SAI_HV_INCPLANE = 1 };
 
 #define SAI_PASS_X       0x1
 #define SAI_PASS_Y       0x2
@@ -53,6 +62,7 @@ typedef struct {
     SaiGrid gn[4];              /* XX, XY, YX, YY */
     SaiGrid cpL, cpR;           /* LHCP (co) and RHCP (cross) of the L port */
     double GcpPeak_dB;          /* peak co-polar directivity from the pattern integral */
+    double floorX, floorY;      /* field floor of ports X and Y: min |E| over the grid */
 } SaiPattern;
 
 /* One port CDF table, F shared by the four frequency columns, plus the
@@ -80,6 +90,8 @@ typedef struct {
     char runTag[64];
     double gamma, WD, etaHV, etaL, dirLinLoss_dB;
     double thetaMax_deg;                    /* maximum incidence angle of an observation */
+    int hvBasis;                            /* SAI_HV_FIXEDXY or SAI_HV_INCPLANE */
+    double hvImb_dB, hvImb_deg;             /* incidencePlane: Y-channel amplitude and phase error */
     SaiCdf cdf[SAI_NSCORE];                 /* ports X, Y, L; Lcp uses L */
     double Ginv[SAI_NSCORE];                /* F^-1(1-gamma) at 1575 MHz, per scoring */
     int nTx;

@@ -207,5 +207,10 @@ function writeSaiSection(projPath, model, runTag)
         fprintf(fid, '%-8s %-5s %d %-16s %.17g %.17g %.17g %.17g %.17g %d\n', ...
             t.name, t.type, t.cdfCol, t.patTag, t.Glin_dBi, t.S0, t.Nc, t.TI_s, t.Nincoh, t.spotbeam);
     end
+    % H&V port basis, read by sai.c; omitted for fixedXY so those files are unchanged
+    if isfield(model, 'hvBasis') && model.hvBasis == "incidencePlane"
+        putLine(sprintf('incidencePlane %.17g %.17g', model.hvImb), ...
+                'H&V port basis; Y-channel amplitude [dB] and phase [deg] error');
+    end
     fclose(fid);
 end

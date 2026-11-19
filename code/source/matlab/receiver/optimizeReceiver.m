@@ -38,7 +38,13 @@ function [payload, info] = optimizeReceiver(opts)
 %                          for gnssEIRPFromICD, or numeric [f_MHz EIRP_dBW] rows)
 %     GNSS_EIRP_MODE       "margin"  gnssEIRPFromICD mode
 %     GNSS_EIRP_MARGIN_dB  1.0
-%     cdfFile              earthdata/reflectivity/reflectivity_CDF_v2.mat
+%     HV_BASIS             "fixedXY"  linear ports X and Y as body-fixed ports, or
+%                                     "incidencePlane": V and H synthesized per
+%                                     observation in the plane of incidence
+%                                     (synthLinearPort, as evaluateReceiver)
+%     HV_IMB               [0.5 5]    incidencePlane: Y-channel amplitude [dB] and
+%                                     phase [deg] error
+%     cdfFile             earthdata/reflectivity/reflectivity_CDF_v2.mat
 %     verbose              false   print the search log and the design tables
 %     progressFcn          []      called as progressFcn(frac, msg) at each stage,
 %                                  frac the fraction of the run done (0 to 1)
@@ -84,7 +90,7 @@ function [payload, info] = optimizeReceiver(opts)
         'NADIR_FACE', "large", 'GP_OPTIONS', [], 'GNSS_SIG_OPTIONS', {{"GPS_L1CA"}}, ...
         'GNSS_EIRP_MODE', "margin", 'GNSS_EIRP_MARGIN_dB', 1.0, ...
         'cdfFile', fullfile('earthdata', 'reflectivity', 'reflectivity_CDF_v2.mat'), ...
-        'verbose', false, 'progressFcn', []);
+        'verbose', false, 'progressFcn', [], 'HV_BASIS', "fixedXY", 'HV_IMB', [0.5 5]);
     if ~isfield(opts, 'GEOM') || isempty(opts.GEOM)
         error('optimizeReceiver:noGeom', 'opts.GEOM (the single-receiver geometry sample) is required.');
     end
@@ -112,6 +118,11 @@ function [payload, info] = optimizeReceiver(opts)
     %   "LHCP"  one circular port L, LHCP toward nadir; LHCP coefficients, 0.10
     %   "HVC"   X and Y sampled coherently and combined into L = (X + jY)/sqrt(2);
     %           the H&V products on X and Y are required; H&V coefficients, 0.06
+    HV_BASIS = string(opts.HV_BASIS);
+    if ~any(HV_BASIS == ["fixedXY" "incidencePlane"])
+        error('optimizeReceiver:hvBasis', 'HV_BASIS must be "fixedXY" or "incidencePlane".');
+    end
+    HV_W = 10^(opts.HV_IMB(1)/20) * exp(1j*opts.HV_IMB(2)*pi/180);
     RX_POL = string(opts.RX_POL);
     if ~any(RX_POL == ["HV" "LHCP" "HVC"]), error('optimizeReceiver:rxpol', 'RX_POL must be "HV", "LHCP" or "HVC".'); end
     switch RX_POL
@@ -261,7 +272,7 @@ function [payload, info] = optimizeReceiver(opts)
     %   Altitude is handled by ratio scaling of the simulated ranges, so
     %   altitude results describe per-observation link quality at fixed
     %   sampling, not coverage.
-    vprintf('\n===== OPTIMIZE RECEIVER  (RX_POL = %s, RMSE target %.2f) =====\n', RX_POL, RMSE_TARGET);
+    vprintf('\n===== OPTIMIZE RECEIVER  (RX_POL = %s, H&V basis %s, RMSE target %.2f) =====\n', RX_POL, HV_BASIS, RMSE_TARGET);
     vprintf('  GNSS signals tracked: %d  (', N_SIG);
     vprintf('%.2f MHz ', GNSS_SIG(:,1)); vprintf(')\n');
     vprintf('  precomputing geometry and arrival-direction indices ...\n');
@@ -336,7 +347,7 @@ function [payload, info] = optimizeReceiver(opts)
     PRE = struct();
     for ib = 1:nBand
         nm = BAND(ib);
-        P = struct('rangeTR',[], 'rangeTS',[], 'rangeSR',[], 'theta',[], 'iR',[], 'iD',[], 'thR',[], 'thD',[], 'grp',[], 'altRef',[]);
+        P = struct('rangeTR',[], 'rangeTS',[], 'rangeSR',[], 'theta',[], 'iR',[], 'iD',[], 'thR',[], 'thD',[], 'grp',[], 'altRef',[], 'psi',[]);
         for ig = 1:nGrp
             T = RAW{ig}.(nm);
             nObs = numel(T.rangeTR);
@@ -350,6 +361,7 @@ function [payload, info] = optimizeReceiver(opts)
             P.iR = [P.iR; localGridIndex(T.lookAngElR, T.lookAngAzR, RES_DEG)];
             P.iD = [P.iD; localGridIndex(T.lookAngElD, T.lookAngAzD, RES_DEG)];
             P.thR = [P.thR; T.lookAngElR];  P.thD = [P.thD; T.lookAngElD];   % nadir-frame arrival angles, rad
+            P.psi = [P.psi; T.lookAngAzR];    % specular azimuth, antenna frame (incidencePlane)
             P.grp    = [P.grp;    ig*ones(nObs,1)];
             P.altRef = [P.altRef; aRef*ones(nObs,1)];
         end
@@ -431,7 +443,7 @@ function [payload, info] = optimizeReceiver(opts)
         'STOW_BUDGET_U',STOW_BUDGET_U, 'RHO_AREAL',RHO_AREAL_kgm2, 'RHO_BOOM',RHO_BOOM_kgm, ...
         'M_ELEM',M_ELEM_kg, 'M_CHAN',M_CHAN_kg, 'STOW_ELEM_U',STOW_ELEM_U, ...
         'STOW_U_PER_M',STOW_U_PER_M, 'D_DECK',D_DECK, 'H_DEPLOYER',H_DEPLOYER, 'GP_MASS',GP_OPTIONS(1).mass_kg, ...
-        'DWELL_EPOCH',localIf(ROUND_IMPL, DWELL_EPOCH, 0));
+        'DWELL_EPOCH',localIf(ROUND_IMPL, DWELL_EPOCH, 0), 'HV_BASIS',HV_BASIS, 'HV_W',HV_W);
     % the braces around REQ_PORTS: struct() given a bare cell array builds a
     % struct array with one element per cell
     % Pattern cache shared by every objective call of this run: the I/P
@@ -734,6 +746,8 @@ function [payload, info] = optimizeReceiver(opts)
     payload = struct();
     payload.order        = TX7;
     payload.RX_POL       = RX_POL;                     % feed network the design was optimized for
+    payload.HV_BASIS     = HV_BASIS;                   % H&V port basis the design was optimized for
+    payload.HV_IMB       = opts.HV_IMB;                % incidencePlane: Y-channel error [dB deg]
     payload.gp_option    = string(GP_SEL.label);       % ground plane chosen (preference order, first within PASS_GAIN_TOL of the best)
     payload.bus_face_m   = stored('%.3g', BUS_FACE_m); % nadir face of the 6U
     payload.D_deck_m     = stored('%.6g', D_DECK);     % area-equivalent bare face (ground plane of the L-band patch)
@@ -932,17 +946,17 @@ function [f, detail, info] = localPassFraction(x, nch, PRE, BAND, isGNSS, freq, 
             % direct path pays the mismatch. L: the reflected arm reads the L
             % pattern (co-polar, front), the direct arm the R pattern
             % (co-polar through the back), no mismatch.
-            switch port
-                case "X",  PWr = A.XX.^2 + A.XY.^2;  PWd = PWr;   gpk = A.G_realized_dBi;   pm = K.POLMIS;
-                case "Y",  PWr = A.YX.^2 + A.YY.^2;  PWd = PWr;   gpk = A.G_realized_dBi;   pm = K.POLMIS;
-                case "L",  PWr = A.L.^2;             PWd = A.R.^2; gpk = A.G_realized_cp_dBi; pm = 0;
+            if port == "L"
+                PWr = A.L(P.iR).^2;  PWd = A.R(P.iD).^2;  gpk = A.G_realized_cp_dBi;  pm = 0;
+            else
+                [PWr, PWd] = localLinearPower(A, port, P, K);  gpk = A.G_realized_dBi;  pm = K.POLMIS;
             end
-            GR = 10*log10(max(PWr(P.iR), 1e-30)) + gpk;
+            GR = 10*log10(max(PWr, 1e-30)) + gpk;
             if isGNSS(ib)
                 thr = 1/(eb*S0*Nc*P.Ginv.(port));
                 ok  = 10.^(GR/10)./RR.^2 > thr;
             else
-                GD = 10*log10(max(PWd(P.iD), 1e-30)) + gpk - pm;
+                GD = 10*log10(max(PWd, 1e-30)) + gpk - pm;
                 SD = S0*10.^(GD/10)./RD.^2;                     % direct SNR per observation
                 beta = 10.^((20*log10(RD./RR) + GR - GD)/10);
                 [Pobs, ok1] = localWindowPass(SD, eb*Nc, kap, beta, P.cdfX.(port), P.cdfF.(port));
@@ -1150,15 +1164,33 @@ function grgd = localDeliveredRatio(info, PRE, BAND, isGNSS, port, K)
     for ib = 1:3
         if isGNSS(ib), continue; end
         nm = BAND(ib);  P = PRE.(nm);  A = info.(nm);
-        switch port
-            case "X",  PWr = A.XX.^2 + A.XY.^2;  PWd = PWr;   gpk = A.G_realized_dBi;   pm = K.POLMIS;
-            case "Y",  PWr = A.YX.^2 + A.YY.^2;  PWd = PWr;   gpk = A.G_realized_dBi;   pm = K.POLMIS;
-            case "L",  PWr = A.L.^2;             PWd = A.R.^2; gpk = A.G_realized_cp_dBi; pm = 0;
+        if port == "L"
+            PWr = A.L(P.iR).^2;  PWd = A.R(P.iD).^2;  gpk = A.G_realized_cp_dBi;  pm = 0;
+        else
+            [PWr, PWd] = localLinearPower(A, port, P, K);  gpk = A.G_realized_dBi;  pm = K.POLMIS;
         end
-        GR = 10*log10(max(PWr(P.iR), 1e-30)) + gpk;
-        GD = 10*log10(max(PWd(P.iD), 1e-30)) + gpk - pm;
+        GR = 10*log10(max(PWr, 1e-30)) + gpk;
+        GD = 10*log10(max(PWd, 1e-30)) + gpk - pm;
         grgd(ib) = median(GR - GD);
     end
+end
+
+function [PWr, PWd] = localLinearPower(A, port, P, K)
+% LOCALLINEARPOWER  Power of linear port X or Y at the reflected (P.iR) and
+%   direct (P.iD) arrivals: the body-fixed port (HV_BASIS "fixedXY"), or the
+%   port synthesized in the plane of incidence, V for X and H for Y
+%   ("incidencePlane"; synthLinearPort, as LookupAntGainSAI ports V and H).
+    if ~isfield(K, 'HV_BASIS') || K.HV_BASIS == "fixedXY"
+        if port == "X", a = A.XX; b = A.XY; else, a = A.YX; b = A.YY; end
+        PWr = a(P.iR).^2 + b(P.iR).^2;
+        PWd = a(P.iD).^2 + b(P.iD).^2;
+        return
+    end
+    f = [min(sqrt(A.XX.^2 + A.XY.^2), [], 'all'), min(sqrt(A.YX.^2 + A.YY.^2), [], 'all')];
+    psi = P.psi;  if port == "Y", psi = psi + pi/2; end
+    pick = @(i) struct('XX', A.XX(i), 'XY', A.XY(i), 'YX', A.YX(i), 'YY', A.YY(i));
+    PWr = synthLinearPort(pick(P.iR), psi, f, K.HV_W, true);
+    PWd = synthLinearPort(pick(P.iD), psi, f, K.HV_W, true);
 end
 
 function off = localOffIP(K)

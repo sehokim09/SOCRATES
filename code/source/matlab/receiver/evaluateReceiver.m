@@ -20,8 +20,9 @@ function R = evaluateReceiver(payload, saiAnt, opts)
 %                    basis the reflectivity CDFs were built in
 %     HV_FLOOR       true    incidencePlane: re-apply the pattern floor to the
 %                            synthesized port (LookupAntGainSAI hvOpts.floor)
-%     HV_IMB         [0 0]   incidencePlane: Y-channel amplitude [dB] and phase
-%                            [deg] error relative to X
+%     HV_IMB         [0.5 5] incidencePlane: Y-channel amplitude [dB] and phase
+%                            [deg] error relative to X; the combiner error of
+%                            the circular port (SAIAntennaPattern)
 %     T_h            12      inter-frequency observation window [hour]
 %     RMSE_target    NaN     soil-moisture RMSE target; NaN = 0.06 (HV, HVC), 0.12 (LHCP)
 %     RMSE_target_L  NaN     HVC only: target of the LHCP product; NaN = 0.12
@@ -78,7 +79,7 @@ function R = evaluateReceiver(payload, saiAnt, opts)
         'patDir', fullfile('ant_pat', 'sai'), ...
         'cdfFile', fullfile('earthdata', 'reflectivity', 'reflectivity_CDF_v2.mat'), ...
         'geomDir', "", 'source', "", 'verbose', false, 'progressFcn', [], ...
-        'HV_BASIS', "fixedXY", 'HV_FLOOR', true, 'HV_IMB', [0 0]));
+        'HV_BASIS', "fixedXY", 'HV_FLOOR', true, 'HV_IMB', [0.5 5]));
     HV_BASIS = string(opts.HV_BASIS);
     if ~any(HV_BASIS == ["fixedXY" "incidencePlane"])
         error('evaluateReceiver:hvBasis', 'HV_BASIS must be "fixedXY" or "incidencePlane".');
@@ -737,6 +738,8 @@ function M = observationModel(R, G_ant_dB, dirLinLoss_dB, thetaMax_deg, source)
     M.etaL = B.eta_L_avg;
     M.dirLinLoss_dB = dirLinLoss_dB;
     M.thetaMax_deg = thetaMax_deg;
+    M.hvBasis = B.HV_BASIS;           % H&V port basis (Inp_Design: optional line after the table)
+    M.hvImb = B.HV_IMB;               % incidencePlane: Y-channel error [dB deg]
     M.nTx = numel(Tx);
     M.tx = struct('name', cellstr(Tx), 'type', "SAI", 'cdfCol', 0, 'patTag', "", ...
                   'Glin_dBi', 0, 'S0', 0, 'Nc', 0, 'TI_s', 0, 'Nincoh', 0, 'spotbeam', false);

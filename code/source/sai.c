@@ -12,6 +12,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <float.h>
 #include "sai.h"
 
 #define SAI_LIGHTSPEED 299792458.0      /* m/s, MATLAB physconst("lightspeed") */
@@ -345,6 +346,15 @@ static int saiLoadPattern(const char *patDir, const char *tag, SaiPattern *P)
             return -1;
         }
     }
+    /* port floors, LookupAntGainSAI localPortFloor: min over the grid of
+       sqrt(XX^2 + XY^2) and sqrt(YX^2 + YY^2) */
+    P->floorX = P->floorY = INFINITY;
+    for (i = 0; i < P->gn[0].nPhi*P->gn[0].nTheta; i++) {
+        double ex = sqrt(P->gn[0].v[i]*P->gn[0].v[i] + P->gn[1].v[i]*P->gn[1].v[i]);
+        double ey = sqrt(P->gn[2].v[i]*P->gn[2].v[i] + P->gn[3].v[i]*P->gn[3].v[i]);
+        if (ex < P->floorX) P->floorX = ex;
+        if (ey < P->floorY) P->floorY = ey;
+    }
     saiJoin(cpDir, sizeof cpDir, patDir, "cp/");
     snprintf(name, sizeof name, "%s_L_norm_vol_num.csv", tag);
     saiJoin(path, sizeof path, cpDir, name);
@@ -481,6 +491,31 @@ int saiLoad(const char *designPath, const char *antRoot, SaiModel *M)
         T->pat = &M->pat[k];
         i++;
     }
+    /* optional H&V port basis after the table: "fixedXY" or
+       "incidencePlane [amp_dB phase_deg]"; absent = fixedXY, no error given = 0 */
+    M->hvBasis = SAI_HV_FIXEDXY;
+    M->hvImb_dB = M->hvImb_deg = 0.0;
+    if (i == M->nTx) {
+        char val[256], word[32];
+        double a, ph;
+        int nf;
+        while (saiReadValue(fp, val, sizeof val)) {
+            if (val[0] == '\0') continue;
+            if (val[0] == '=') break;
+            nf = sscanf(val, "%31s %lf %lf", word, &a, &ph);
+            if (!strcmp(word, "incidencePlane") && (nf == 1 || nf == 3)) {
+                M->hvBasis = SAI_HV_INCPLANE;
+                if (nf == 3) { M->hvImb_dB = a;  M->hvImb_deg = ph; }
+            }
+            else if (strcmp(word, "fixedXY") || nf != 1) {
+                fprintf(stderr, "saiLoad: H&V port basis \"%s\" (fixedXY, or incidencePlane [amp_dB phase_deg])\n", val);
+                fclose(fp);
+                saiFree(M);
+                return -1;
+            }
+            break;
+        }
+    }
     fclose(fp);
     if (i < M->nTx) goto truncated;
 
@@ -557,6 +592,34 @@ const SaiTx *saiFindTx(const SaiModel *M, const char *soopName, const char *txNa
 /*  Evaluation                                                            */
 /* --------------------------------------------------------------------- */
 
+/* Invert the pattern floor, |E|^2 -> |E|^2 - f^2, direction kept
+   (LookupAntGainSAI localUnfloor) */
+static void saiUnfloor(double *a, double *b, double f)
+{
+    double E2 = (*a)*(*a) + (*b)*(*b);
+    double s = sqrt(fmax(E2 - f*f, 0.0)/fmax(E2, DBL_MIN));
+    *a *= s;  *b *= s;
+}
+
+/* Power of the port cos(psi) X + sin(psi) w Y at (el, az), w the Y-channel
+   error: floors removed, ports combined, floor re-applied (localSynth) */
+static double saiSynthPower(const SaiModel *M, const SaiPattern *P,
+                            double el, double az, double psi)
+{
+    double xx = saiPick(&P->gn[0], el, az), xy = saiPick(&P->gn[1], el, az);
+    double yx = saiPick(&P->gn[2], el, az), yy = saiPick(&P->gn[3], el, az);
+    double c = cos(psi), s = sin(psi), f, m1, m2;
+    double wa = pow(10.0, M->hvImb_dB/20.0), wp = M->hvImb_deg*saiPi/180.0;
+    double swr = s*(wa*cos(wp)), swi = s*(wa*sin(wp));
+
+    saiUnfloor(&xx, &xy, P->floorX);
+    saiUnfloor(&yx, &yy, P->floorY);
+    m1 = hypot(c*xx + swr*yx, swi*yx);
+    m2 = hypot(c*xy + swr*yy, swi*yy);
+    f = (P->floorX + P->floorY)/2.0;
+    return m1*m1 + m2*m2 + f*f;
+}
+
 /* Port gains [dBi] of one scoring (LookupAntGainSAI) */
 static void saiGains(const SaiModel *M, const SaiTx *T, int score,
                      double elD, double azD, double elR, double azR,
@@ -570,6 +633,15 @@ static void saiGains(const SaiModel *M, const SaiTx *T, int score,
         /* reflected co-polar (L file), direct through the back (R file), no mismatch term */
         *G_R_dB = 20.0*log10(saiPick(&P->cpL, elR, azR)) + P->GcpPeak_dB;
         *G_D_dB = T->isGNSS ? NAN : 20.0*log10(saiPick(&P->cpR, elD, azD)) + P->GcpPeak_dB;
+        return;
+    }
+    if (M->hvBasis == SAI_HV_INCPLANE) {
+        /* V (score X): psi = specular azimuth; H (score Y): psi + 90 deg; one
+           port receives both arms, so the direct arm uses the same weights */
+        double psi = (score == SAI_SCORE_Y) ? azR + saiPi/2.0 : azR;
+        *G_R_dB = 10.0*log10(saiSynthPower(M, P, elR, azR, psi)) + T->GlinPeak_dB;
+        *G_D_dB = T->isGNSS ? NAN
+                : 10.0*log10(saiSynthPower(M, P, elD, azD, psi)) + T->GlinPeak_dB - M->dirLinLoss_dB;
         return;
     }
     a = saiPick(&P->gn[r], elR, azR);

@@ -213,6 +213,25 @@ function [model, runTag] = readSaiSection(fileID)
             'Nc', str2double(f(7)), 'TI_s', str2double(f(8)), 'Nincoh', str2double(f(9)), ...
             'spotbeam', f(10) == "1");
     end
+    % optional H&V port basis after the table (sai.c rules): absent = fixedXY
+    model.hvBasis = "fixedXY";  model.hvImb = [0 0];
+    line = fgetl(fileID);
+    while ischar(line)
+        v = strtrim(extractBefore(string(line) + "!", "!"));
+        if strlength(v) > 0
+            if ~startsWith(v, "=")
+                f = split(v);
+                if f(1) == "incidencePlane"
+                    model.hvBasis = "incidencePlane";
+                    if numel(f) == 3, model.hvImb = str2double(f(2:3)).'; end
+                elseif f(1) ~= "fixedXY"
+                    error('readInpDesign:hvBasis', 'H&V port basis "%s" (fixedXY, or incidencePlane [amp_dB phase_deg]).', v);
+                end
+            end
+            break
+        end
+        line = fgetl(fileID);
+    end
     % CDF tables: columns F, X137, X255, X370, X1575, at a path from the
     % SOCRATES root (earthdata/reflectivity)
     ports = ["X" "Y" "L"];

@@ -287,32 +287,13 @@ function [G_D_dB, G_R_dB] = localIncidencePlaneGain(Tx, data, G_ant_dB, port, pm
         f = floors.(key);
         psi = double(data.(nm).lookAngAzR(:));
         if port == "H", psi = psi + pi/2; end
-        G_R_dB.(nm) = 10*log10(localSynth(g_R.(nm), psi, f, w, o.floor)) + G_ant_dB(iTx) - pm(2);
+        G_R_dB.(nm) = 10*log10(synthLinearPort(g_R.(nm), psi, f, w, o.floor)) + G_ant_dB(iTx) - pm(2);
         if all(isnan(g_D.(nm).XX))
             G_D_dB.(nm) = nan(numel(psi), 1);
         else
-            G_D_dB.(nm) = 10*log10(localSynth(g_D.(nm), psi, f, w, o.floor)) + G_ant_dB(iTx) - pm(1);
+            G_D_dB.(nm) = 10*log10(synthLinearPort(g_D.(nm), psi, f, w, o.floor)) + G_ant_dB(iTx) - pm(1);
         end
     end
-end
-
-function P = localSynth(g, psi, f, w, refloor)
-%LOCALSYNTH Power of the port cos(psi)*X + sin(psi)*w*Y from the floored
-%   port fields g (XX, XY, YX, YY) and the port floors f = [fX fY].
-    [xx, xy] = localUnfloor(g.XX, g.XY, f(1));
-    [yx, yy] = localUnfloor(g.YX, g.YY, f(2));
-    c = cos(psi);  s = sin(psi);
-    p1 = c.*xx + s.*w.*yx;
-    p2 = c.*xy + s.*w.*yy;
-    P = abs(p1).^2 + abs(p2).^2;
-    if refloor, P = P + mean(f)^2; end
-end
-
-function [a, b] = localUnfloor(a, b, f)
-%LOCALUNFLOOR Invert localVectorFloor: |E|^2 -> |E|^2 - f^2, direction kept.
-    E2 = a.^2 + b.^2;
-    s = sqrt(max(E2 - f^2, 0) ./ max(E2, realmin));
-    a = a.*s;  b = b.*s;
 end
 
 function f = localPortFloor(antDir, tag)
