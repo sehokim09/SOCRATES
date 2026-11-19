@@ -10,8 +10,12 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel, product)
 %
 %   product (optional) is the observation product the FoMs score: "LHCP"
 %   (obsFreqL, nSpPassLcp_*) or "HV" (obsFreq, nSpValid_*). By default it is
-%   DesignParamsObj.receiver.fomProduct. The product is stored in the FoM file,
-%   and a restart or a parallel checkpoint of the other product is refused.
+%   DesignParamsObj.receiver.fomProduct. The FoMs of the other product are
+%   computed in the same pass and stored under the same names with the suffix
+%   "_<other product>" (e.g. MRT1T_HV, MSC1T1st_HV when LHCP is scored); cost
+%   fields are not repeated. The scored product (product) and the other one
+%   (productAlt) are stored in the FoM file, and a restart or a parallel
+%   checkpoint holding other products is refused.
 %
 %   useParallel (optional, default false) computes the cases in a parfor loop:
 %   each case is saved to its own file in sim/<projName>/out/FoM_<projName>_<performTag>_cases/
@@ -69,11 +73,16 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel, product)
     end
     product = upper(string(product));
     switch product
-        case "HV",   obsVar = "obsFreq";
-        case "LHCP", obsVar = "obsFreqL";
+        case "HV",   obsVar = "obsFreq";   productAlt = "LHCP";  obsVarAlt = "obsFreqL";
+        case "LHCP", obsVar = "obsFreqL";  productAlt = "HV";    obsVarAlt = "obsFreq";
         otherwise
             error('createFoM:product', 'product must be "HV" or "LHCP", not "%s".', product);
     end
+    sfxAlt = "_" + productAlt;     % the other product's FoMs: same names with this suffix
+    % per-case performance arrays, kept for both products
+    PERF_VARS = {'SSC', 'coverage1T1st', 'coverage1T2nd', 'coverage2T1st', 'coverage2T2nd', ...
+        'coverage1Tzonal', 'coverage1Tglobal', 'coverage2Tzonal', 'coverage2Tglobal', ...
+        'SRT1T', 'SRT2T', 'MRT1T', 'MRT2T', 'Nmulti1T', 'Nmulti2T', 'nSpValid', 'nSpInvalid', 'nSpRatio'};
 
     %% Directories
     dir_out = fullfile('sim', projName, 'out');
@@ -173,6 +182,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel, product)
                'windowHours1T', windowHours1T, 'windowHours2T', windowHours2T);
     P.TxCombName = TxCombName;
     P.product = product;  P.obsVar = obsVar;
+    P.productAlt = productAlt;  P.obsVarAlt = obsVarAlt;  P.sfxAlt = sfxAlt;
     costFile = dir_spdata + filesep + filename_cost;
     performFile = dir_spdata + filesep + filename_perform;
     nCaseTotal = nNrx * nAlt * nInc * nNplane;
@@ -180,7 +190,7 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel, product)
     t0 = tic;
     runMode = "serial";
     if useParallel, runMode = "parallel"; end
-    fprintf('\n===== CREATE FoM: %s (run tag %s, %s product) =====\n', projName, performTag, product);
+    fprintf('\n===== CREATE FoM: %s (run tag %s, %s product, %s as *%s) =====\n', projName, performTag, product, productAlt, sfxAlt);
     fprintf('  %d constellation(s), %d TxComb, %d frequency combination(s), %d windows of %g h, %d x %d grid\n', ...
         nCaseTotal, nTxComb, nFreqComb, nWindow, windowHours1T, nCol, nRow);
     fprintf('  %s run, output %s\n', runMode, filepath_out);
@@ -232,16 +242,25 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel, product)
             'SRT1T', 'SRT2T', ...
             'MRT1T', 'MRT2T', 'Nmulti1T', 'Nmulti2T', ...
             'nSpValid', 'nSpInvalid', 'nSpRatio', ...
-            'caseDone', 'loopComplete', 'postProcessComplete', 'product', ...
+            'caseDone', 'loopComplete', 'postProcessComplete', 'product', 'productAlt', ...
             '-v7.3');
+        % the other product's per-case arrays, zeros like the scored product's
+        Z = load(filepath_out, PERF_VARS{:});
+        for v = string(PERF_VARS)
+            Z.(v + sfxAlt) = Z.(v);  Z = rmfield(Z, v);
+        end
+        save(filepath_out, '-struct', 'Z', '-append');
     end
     % A restart continues the product the file was started with (files from
     % before the option hold H&V results)
     fileProduct = "HV";
     if ismember('product', who('-file', filepath_out)), fileProduct = string(load(filepath_out, 'product').product); end
-    if fileProduct ~= product
-        error('createFoM:productMismatch', '%s holds %s results; remove it to compute the %s product.', ...
-            filepath_out, fileProduct, product);
+    fileAlt = "";
+    if ismember('productAlt', who('-file', filepath_out)), fileAlt = string(load(filepath_out, 'productAlt').productAlt); end
+    if fileProduct ~= product || fileAlt ~= productAlt
+        held = fileProduct + " only";  if fileAlt ~= "", held = fileProduct + " and " + fileAlt; end
+        error('createFoM:productMismatch', '%s holds %s results; remove it to compute %s and %s.', ...
+            filepath_out, held, product, productAlt);
     end
 
     %% Open MAT file
@@ -265,13 +284,13 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel, product)
         markFile = fullfile(caseDir, 'product.txt');
         if isfile(markFile), caseProduct = strtrim(string(fileread(markFile)));
         elseif ~isempty(dir(fullfile(caseDir, '*.mat'))), caseProduct = "HV";
-        else, caseProduct = product;
+        else, caseProduct = product + "+" + productAlt;
         end
-        if caseProduct ~= product
-            error('createFoM:productMismatch', '%s holds %s cases; remove it to compute the %s product.', ...
-                caseDir, caseProduct, product);
+        if caseProduct ~= product + "+" + productAlt
+            error('createFoM:productMismatch', '%s holds %s cases; remove it to compute %s and %s.', ...
+                caseDir, caseProduct, product, productAlt);
         end
-        writelines(product, markFile);
+        writelines(product + "+" + productAlt, markFile);
         caseFile = string(caseDir) + filesep + consName + ".mat";
         todo = find(~arrayfun(@isfile, caseFile));
         say(t0, 'parallel run: %d of %d cases to compute; finished cases are kept in %s', ...
@@ -467,6 +486,9 @@ function createFoM(projName, DesignParamsObj, performTag, useParallel, product)
         'SRT1T', 'SRT2T', ...
         'nSpValid', 'nSpInvalid', 'nSpRatio', ...
         '-append');
+    say(t0, 'post-processing: the %s product (fields *%s)', productAlt, sfxAlt);
+    Falt = postPerf(S, sfxAlt, nCase, nTxComb, nFreqComb);
+    save(filepath_out, '-struct', 'Falt', '-append');
 
     M = matfile(filepath_out, 'Writable', true);
     M.postProcessComplete = true;
@@ -538,9 +560,6 @@ function R = fomCase(costFile, performFile, P)
 %
 %   Every field of R is the per-case value of the FoM variable of the same
 %   name in the FoM file; P holds the inputs shared by all cases.
-    nWindow = P.nWindow;  nCol = P.nCol;  nRow = P.nRow;
-    nFreqComb = P.nFreqComb;  nTxComb = P.nTxComb;  freqComb = P.freqComb;
-    landmask = P.landmask;  nCell = P.nCell;
 
     %% Cost
     cost = ncread(costFile, "cost");
@@ -550,8 +569,28 @@ function R = fomCase(costFile, performFile, P)
     R.launchOption = cost(4);
     R.nLaunch = cost(5);
 
-    %% Observable frequencies of the scored product (obsFreq: H&V, obsFreqL: LHCP)
-    obsFreq1T = ncread(performFile, P.obsVar);
+    %% Performance FoMs: the scored product, then the other one under suffixed names
+    R = addFields(R, perfFoMs(performFile, P, P.obsVar, P.product), "");
+    R = addFields(R, perfFoMs(performFile, P, P.obsVarAlt, P.productAlt), P.sfxAlt);
+end
+
+function R = addFields(R, F, sfx)
+% ADDFIELDS  Copy the fields of F into R, each name with the suffix sfx.
+    for f = string(fieldnames(F)).'
+        R.(f + sfx) = F.(f);
+    end
+end
+
+function R = perfFoMs(performFile, P, obsVar, product)
+% PERFFOMS  Coverage, revisit and pass-count FoMs of one product (obsVar:
+%   obsFreq for H&V, obsFreqL for LHCP) from a performance file.
+    nWindow = P.nWindow;  nCol = P.nCol;  nRow = P.nRow;
+    nFreqComb = P.nFreqComb;  nTxComb = P.nTxComb;  freqComb = P.freqComb;
+    landmask = P.landmask;  nCell = P.nCell;
+    R = struct();
+
+    %% Observable frequencies of the product (obsFreq: H&V, obsFreqL: LHCP)
+    obsFreq1T = ncread(performFile, obsVar);
 
     obsFreq2T = zeros(nCol, nRow, nWindow/2, 'like', obsFreq1T);
     for iWindow = 1:nWindow/2
@@ -634,7 +673,7 @@ function R = fomCase(costFile, performFile, P)
         % Scored points pass or fail the product; nSpValid + nSpInvalid counts them all
         nAll = double(ncread(performFile, strcat("nSpValid_", P.TxCombName{iTxComb}))) + ...
                double(ncread(performFile, strcat("nSpInvalid_", P.TxCombName{iTxComb})));
-        if P.product == "LHCP"
+        if product == "LHCP"
             nValid = double(ncread(performFile, strcat("nSpPassLcp_", P.TxCombName{iTxComb})));
         else
             nValid = double(ncread(performFile, strcat("nSpValid_", P.TxCombName{iTxComb})));
@@ -649,6 +688,21 @@ function R = fomCase(costFile, performFile, P)
         else
             R.nSpRatio(iTxComb) = nValid / (nValid + nInvalid);
         end
+    end
+end
+
+function F = postPerf(S, sfx, nCase, nTxComb, nFreqComb)
+% POSTPERF  FoM vectors (one row per constellation) of the product whose
+%   per-case arrays carry the suffix sfx, as the post-processing of the scored product.
+    F = struct();
+    F.("SSC" + sfx) = reshape(S.("SSC" + sfx), nCase, nTxComb);
+    for c = ["1T1st" "1T2nd" "2T1st" "2T2nd"]
+        cov = S.("coverage" + c + sfx);
+        F.("MSC" + c + sfx) = reshape(squeeze(cov(:,:,:,:,end,:)), [], nFreqComb);
+    end
+    for v = ["MRT1T" "MRT2T"],  F.(v + sfx) = reshape(S.(v + sfx), [], nFreqComb);    end
+    for v = ["SRT1T" "SRT2T" "nSpValid" "nSpInvalid" "nSpRatio"]
+        F.(v + sfx) = reshape(S.(v + sfx), nCase, nTxComb);
     end
 end
 
